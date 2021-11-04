@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import pytorch_lightning as pl
+#import pytorch_lightning as pl
 
 def knn(x, k):
     inner = -2*torch.matmul(x.transpose(2, 1), x)
@@ -53,7 +53,7 @@ class DGCNN(nn.Module):
         self.bn2 = nn.BatchNorm2d(64)
         self.bn3 = nn.BatchNorm2d(128)
         self.bn4 = nn.BatchNorm2d(256)
-        self.bn5 = nn.BatchNorm1d(args.emb_dims)
+        self.bn5 = nn.BatchNorm1d(args.emb_dims//2)
 
         self.conv1 = nn.Sequential(nn.Conv2d(6, 64, kernel_size=1, bias=False),
                                    self.bn1,
@@ -67,7 +67,7 @@ class DGCNN(nn.Module):
         self.conv4 = nn.Sequential(nn.Conv2d(128*2, 256, kernel_size=1, bias=False),
                                    self.bn4,
                                    nn.LeakyReLU(negative_slope=0.2))
-        self.conv5 = nn.Sequential(nn.Conv1d(512, args.emb_dims, kernel_size=1, bias=False),
+        self.conv5 = nn.Sequential(nn.Conv1d(512, args.emb_dims//2, kernel_size=1, bias=False),
                                    self.bn5,
                                    nn.LeakyReLU(negative_slope=0.2))
         self.linear1 = nn.Linear(args.emb_dims*2, 512, bias=False)
@@ -152,18 +152,22 @@ class FM3D(nn.Module):
         self.args = args
         self.DGCNN = DGCNN(args)
         self.DeSmooth = nn.Sequential(
-            nn.Conv1d(in_channels=self.input_pts, out_channels=self.input_pts + 128, kernel_size=1, stride=1,
-                      bias=False),
-            nn.ReLU(),
+            #nn.Conv1d(in_channels=self.input_pts, out_channels=self.input_pts + 128, kernel_size=1, stride=1,
+            #          bias=False),
+            #nn.ReLU(),
             norm(axis=1),
-            nn.Conv1d(in_channels=self.input_pts + 128, out_channels=self.input_pts, kernel_size=1, stride=1,
-                      bias=False),
+            #nn.Conv1d(in_channels=self.input_pts + 128, out_channels=self.input_pts, kernel_size=1, stride=1,
+            #          bias=False),
             Modified_softmax(axis=2)
         )
-        self.predictor = nn.Sequential(nn.Linear(1024, 512, bias=False),
-                                        nn.BatchNorm1d(512),
-                                        nn.ReLU(),
-                                        nn.Linear(512, 1024))
+        self.bn1 = nn.BatchNorm1d(256)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.predictor = nn.Sequential(nn.Conv1d(512, 256, kernel_size=1, bias=False),
+                                        self.bn1,
+                                        nn.LeakyReLU(negative_slope=0.2),
+                                        nn.Conv1d(256, 512, kernel_size=1, bias=False),
+                                        self.bn2,
+                                        nn.LeakyReLU(negative_slope=0.2))
     def _KFNN(self, x, y, k=10):
         def batched_pairwise_dist(a, b):
             x, y = a.float(), b.float()
@@ -186,21 +190,21 @@ class FM3D(nn.Module):
 
     def forward(self,pointcloud,transformed_pointcloud):
         fe1 = self.DGCNN(pointcloud)
-        fe2 = self.DGCNN(transformed_pointcloud)
+        fe2 = self.DGCNN(transformed_pointcloud)   #b*d*n
         pairwise_distance,_ = self._KFNN(fe1,fe2)
-        similarity = 1 / (pairwise_distance + 1e-6)
-        p = self.DeSmooth(similarity.transpose(1, 2).contiguous()).transpose(1, 2).contiguous()
-        p_t = p.transpose(2, 1).contiguous()
-        fe1_permuted = torch.bmm(p, fe1)
-        fe2_permuted = torch.bmm(p_t, fe2)  #batch*num_points*feature_dimension
+        similarity = 1 / (pairwise_distance + 1e-6) #b*n*n
+        M = self.DeSmooth(similarity.transpose(1, 2).contiguous()).transpose(1, 2).contiguous()  #b*n*n
+        M_t = M.transpose(2, 1).contiguous()  #which one is which one?
+        fe1_permuted = torch.bmm(fe1, M)
+        fe2_permuted = torch.bmm(fe2, M_t)  #batch*num_points*feature_dimension
 
         fe1_final = self.predictor(fe1_permuted)
-        fe2_final = self.predictor(fe2_permuted)
+        fe2_final = self.predictor(fe2_permuted) #b*d*n
 
         fe1_nograd = fe1.detach()
         fe2_nograd = fe2.detach()
 
-        return fe1_nograd, fe2_nograd, fe1_final, fe2_final, p
+        return fe1_nograd, fe2_nograd, fe1_final, fe2_final, M
 
 
 class contrastive_loss(nn.Module):
@@ -214,19 +218,19 @@ class contrastive_loss(nn.Module):
         loss_F = torch.norm((matrix1-matrix2),dim=(1,2))
         return loss_F
 
-    def loss(self, fe1_nograd, fe2_nograd, fe1_final, fe2_final, p):
+    def forward(self, fe1_nograd, fe2_nograd, fe1_final, fe2_final, M):
         batch_size = fe1_final.shape[0]
         bmean_loss_F1 = torch.mean(self._batch_frobenius_norm(fe1_nograd, fe2_final))
         bmean_loss_F2 = torch.mean(self._batch_frobenius_norm(fe2_nograd, fe1_final))
-        I_N1 = torch.eye(n=p.shape[2])
+        I_N1 = torch.eye(n=M.shape[2]).cuda()
         I_N1 = I_N1.unsqueeze(0).repeat(batch_size, 1, 1)
-        P_loss1 = torch.mean(
-            self._batch_frobenius_norm(torch.bmm(p, p.transpose(2, 1).contiguous()), I_N1.float()))
-        P_loss2 = torch.mean(torch.norm(p),dim=(1,2))
+        M_loss1 = torch.mean(
+            self._batch_frobenius_norm(torch.bmm(M, M.transpose(2, 1).contiguous()), I_N1.float()))
+        M_loss2 = torch.mean(torch.norm(M,dim=(1,2)))
         FB_loss = (bmean_loss_F1+bmean_loss_F2)/2
-        final_loss = FB_loss + self.alpha1*P_loss1 +self.alpha2*P_loss2
+        final_loss = FB_loss + self.alpha1*M_loss1 +self.alpha2*M_loss2
 
-        return final_loss, FB_loss, P_loss1, P_loss2
+        return final_loss, FB_loss, M_loss1, M_loss2
 
 
 

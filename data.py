@@ -21,10 +21,10 @@ def download():
 
 def load_data(partition):
     # download()
-    DATA_DIR = '../data/debug'
+    DATA_DIR = './data/debug'
     all_point_clouds = []
     all_transformed_point_clouds = []
-    for h5_name in glob.glob(os.path.join(DATA_DIR, 'modelnet40_ply_hdf5_2048', 'ply_data_%s*.h5'%partition)):
+    for h5_name in glob.glob(os.path.join(DATA_DIR, '%sData_*.h5'%partition)):
         f = h5py.File(h5_name)
         point_clouds = f['point_clouds'][:].astype('float32')
         transformed_point_clouds = f['transformed_point_clouds'][:].astype('float32')
@@ -61,15 +61,17 @@ class ModelNet40(Dataset):
         if self.partition == 'train':
             #pointcloud = translate_pointcloud(pointcloud)
             np.random.shuffle(pointcloud)
+            np.random.shuffle(transformed_point_cloud)
         return pointcloud, transformed_point_cloud
 
     def __len__(self):
-        return self.data.shape[0]
+        return self.point_clouds.shape[0]
 
 
 if __name__ == '__main__':
-    train = ModelNet40(1024)
-    test = ModelNet40(1024, 'test')
-    for data, label in train:
-        print(data.shape)
-        print(label.shape)
+    train = ModelNet40('train')
+    #test = ModelNet40()
+    for pc1, pc2 in train:
+        print(pc1)
+        print(pc2)
+        break

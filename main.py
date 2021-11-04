@@ -25,7 +25,7 @@ def _init_():
     os.system('cp util.py checkpoints' + '/' + args.exp_name + '/' + 'util.py.backup')
     os.system('cp data.py checkpoints' + '/' + args.exp_name + '/' + 'data.py.backup')
 
-def train(args, io):
+def train(args):
     train_loader = DataLoader(ModelNet40(partition='train', num_points=args.num_points), num_workers=8,
                               batch_size=args.batch_size, shuffle=True, drop_last=True)
     test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points), num_workers=8,
@@ -66,26 +66,20 @@ def train(args, io):
             transformed_point_cloud = transformed_point_cloud.permute(0, 2, 1)
             batch_size = pointcloud.size()[0]
             opt.zero_grad()
-            fe1_nograd, fe2_nograd, fe1_final, fe2_final, p = model(pointcloud, transformed_point_cloud)
-            final_loss, FB_loss, P_loss1, P_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, p)
+            fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
+            final_loss, FB_loss, M_loss1,M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
             final_loss.backward()
-            final_loss_list.append(final_loss.data())
+            final_loss_list.append(final_loss.data)
             opt.step()
             #preds = logits.max(dim=1)[1]
             count += batch_size
-            #train_loss += loss.item() * batch_size
-            #train_true.append(label.cpu().numpy())
-            #train_pred.append(preds.detach().cpu().numpy())
-        #train_true = np.concatenate(train_true)
-        #train_pred = np.concatenate(train_pred)
         outstr = 'Train %d, loss: %.6f' % (epoch,
                                             final_loss_list[-1],
                                             )
-        #io.cprint(outstr)
-
         ####################
         # Test
         ####################
+        '''
         test_loss = 0.0
         count = 0.0
         model.eval()
@@ -113,14 +107,9 @@ def train(args, io):
                                            test_loss_list[-1],
                                            )
         '''
-        io.cprint(outstr)
-        if test_acc >= best_test_acc:
-            best_test_acc = test_acc
-            torch.save(model.state_dict(), 'checkpoints/%s/models/model.t7' % args.exp_name)
-        '''
 
 
-def test(args, io):  #not written
+def test(args):  #not written
     test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
                              batch_size=args.test_batch_size, shuffle=True, drop_last=False)
 
@@ -149,7 +138,6 @@ def test(args, io):  #not written
     test_acc = metrics.accuracy_score(test_true, test_pred)
     avg_per_class_acc = metrics.balanced_accuracy_score(test_true, test_pred)
     outstr = 'Test :: test acc: %.6f, test avg acc: %.6f'%(test_acc, avg_per_class_acc)
-    io.cprint(outstr)
 
 
 if __name__ == "__main__":
@@ -162,11 +150,11 @@ if __name__ == "__main__":
                         help='Model to use, [pointnet, dgcnn]')
     parser.add_argument('--dataset', type=str, default='modelnet40', metavar='N',
                         choices=['modelnet40'])
-    parser.add_argument('--batch_size', type=int, default=32, metavar='batch_size',
+    parser.add_argument('--batch_size', type=int, default=4, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--test_batch_size', type=int, default=16, metavar='batch_size',
+    parser.add_argument('--test_batch_size', type=int, default=4, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--epochs', type=int, default=250, metavar='N',
+    parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of episode to train ')
     parser.add_argument('--use_sgd', type=bool, default=False,
                         help='Use SGD')
@@ -186,6 +174,12 @@ if __name__ == "__main__":
                         help='dropout rate')
     parser.add_argument('--emb_dims', type=int, default=1024, metavar='N',
                         help='Dimension of embeddings')
+    parser.add_argument('--input_pts', type=int, default=1024, metavar='N',
+                        help='#')          
+    parser.add_argument('--alpha1', type=float, default=0.1, metavar='N',
+                        help='#')   
+    parser.add_argument('--alpha2', type=float, default=0.1, metavar='N',
+                        help='#')         
     parser.add_argument('--k', type=int, default=20, metavar='N',
                         help='Num of nearest neighbors to use')
     parser.add_argument('--model_path', type=str, default='', metavar='N',
@@ -199,14 +193,8 @@ if __name__ == "__main__":
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     torch.manual_seed(args.seed)
-    if args.cuda:
-        io.cprint(
-            'Using GPU : ' + str(torch.cuda.current_device()) + ' from ' + str(torch.cuda.device_count()) + ' devices')
-        torch.cuda.manual_seed(args.seed)
-    else:
-        io.cprint('Using CPU')
 
     if not args.eval:
-        train(args, io)
+        train(args)
     else:
-        test(args, io)
+        test(args)

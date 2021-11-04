@@ -13,10 +13,10 @@ def load_data(partition):
     :param partition: h5文件名
     :return: data数据列表和label数据列表
     """
-    DATA_DIR = 'ModelNet40_2048'
+    DATA_DIR = 'data'
     all_data = []
     all_label = []
-    for h5_name in glob.glob(os.path.join(DATA_DIR, 'modelnet40_ply_hdf5_2048', 'ply_data_%s*.h5' % partition)):
+    for h5_name in glob.glob(os.path.join(DATA_DIR, 'ply_data_%s*.h5' % partition)):
         f = h5py.File(h5_name)
         data = f['data'][:].astype('float32')
         label = f['label'][:].astype('int64')
@@ -148,5 +148,5 @@ def data_preprocess(partition):
         point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list = pairing(0,2048)
         saveH5(point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list,"testData.h5")
 if __name__ == '__main__':
-    data_preprocess('train')
+    data_preprocess('test')
     #readH5()
