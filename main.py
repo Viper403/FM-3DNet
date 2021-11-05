@@ -47,10 +47,31 @@ def train(args):
 
     scheduler = CosineAnnealingLR(opt, args.epochs, eta_min=args.lr)
     
+    # optionally resume from a checkpoint
+    # ximin
+    if args.model_path:
+        if os.path.isfile(args.model_path):
+            print("=> loading checkpoint '{}'".format(args.model_path))
+            checkpoint = torch.load(args.model_path)
+            args.start_epoch = checkpoint['epoch']
+            model.module.DGCNN.load_state_dict(checkpoint['state_dict'])
+            # model.load_state_dict(checkpoint['state_dict'])
+            opt.load_state_dict(checkpoint['optimizer'])
+            scheduler.load_state_dict(checkpoint['scheduler'])
+            print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.model_path, checkpoint['epoch']))
+        else:
+            print("=> no checkpoint found at '{}'".format(args.model_path))
+
     loss_function = contrastive_loss(args).to(device)
 
     best_test_acc = 0
-    for epoch in range(args.epochs):
+    # ximin
+    if 'start_epoch' in args:
+        start_epoch = args.start_epoch + 1
+    else:
+        start_epoch = 0
+    for epoch in range(start_epoch, args.epochs):
         scheduler.step()
         ####################
         # Train
@@ -73,9 +94,24 @@ def train(args):
             opt.step()
             #preds = logits.max(dim=1)[1]
             count += batch_size
+
+            # ximin
+            print(f"training {count}")
+
         outstr = 'Train %d, loss: %.6f' % (epoch,
                                             final_loss_list[-1],
                                             )
+        # ximin
+        print(outstr)
+        checkpoint = {
+            "state_dict": model.module.DGCNN.state_dict(), 
+            "epoch": epoch,
+            "optimizer": opt.state_dict(),
+            "scheduler": scheduler.state_dict()
+        }
+        filename = 'checkpoints/'+args.exp_name+'/'+'models/'+f'{epoch}.pth'
+        torch.save(checkpoint, filename)
+
         ####################
         # Test
         ####################
@@ -108,7 +144,6 @@ def train(args):
                                            )
         '''
 
-
 def test(args):  #not written
     test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
                              batch_size=args.test_batch_size, shuffle=True, drop_last=False)
@@ -118,7 +153,10 @@ def test(args):  #not written
     #Try to load models
     model = DGCNN(args).to(device)
     model = nn.DataParallel(model)
-    model.load_state_dict(torch.load(args.model_path))
+    # ximin
+    checkpoint = torch.load(args.model_path)
+    model.module.load_state_dict(checkpoint['state_dict'])
+    # model.load_state_dict(torch.load(args.model_path))
     model = model.eval()
     test_acc = 0.0
     count = 0.0
@@ -135,6 +173,11 @@ def test(args):  #not written
         test_pred.append(preds.detach().cpu().numpy())
     test_true = np.concatenate(test_true)
     test_pred = np.concatenate(test_pred)
+
+    # ximin
+    print(test_true.shape)
+    print(test_pred.shape)
+
     test_acc = metrics.accuracy_score(test_true, test_pred)
     avg_per_class_acc = metrics.balanced_accuracy_score(test_true, test_pred)
     outstr = 'Test :: test acc: %.6f, test avg acc: %.6f'%(test_acc, avg_per_class_acc)

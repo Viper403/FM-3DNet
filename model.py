@@ -23,7 +23,9 @@ def get_graph_feature(x, k=20, idx=None):
     x = x.view(batch_size, -1, num_points)
     if idx is None:
         idx = knn(x, k=k)   # (batch_size, num_points, k)
-    device = torch.device('cuda')
+    # ximin
+    # device = torch.device('cuda')
+    device = torch.device("cpu")
 
     idx_base = torch.arange(0, batch_size, device=device).view(-1, 1, 1)*num_points
 
@@ -222,7 +224,10 @@ class contrastive_loss(nn.Module):
         batch_size = fe1_final.shape[0]
         bmean_loss_F1 = torch.mean(self._batch_frobenius_norm(fe1_nograd, fe2_final))
         bmean_loss_F2 = torch.mean(self._batch_frobenius_norm(fe2_nograd, fe1_final))
-        I_N1 = torch.eye(n=M.shape[2]).cuda()
+        # ximin
+        # I_N1 = torch.eye(n=M.shape[2]).cuda()
+        I_N1 = torch.eye(n=M.shape[2])
+        
         I_N1 = I_N1.unsqueeze(0).repeat(batch_size, 1, 1)
         M_loss1 = torch.mean(
             self._batch_frobenius_norm(torch.bmm(M, M.transpose(2, 1).contiguous()), I_N1.float()))
