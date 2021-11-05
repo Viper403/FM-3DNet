@@ -19,9 +19,12 @@ def download():
         os.system('rm %s' % (zipfile))
 
 
-def load_data(partition):
+def load_data(partition, debug):
     # download()
-    DATA_DIR = './data/debug'
+    if debug:
+        DATA_DIR = './data/debug'
+    else:
+        DATA_DIR = './data'
     all_point_clouds = []
     all_transformed_point_clouds = []
     for h5_name in glob.glob(os.path.join(DATA_DIR, '%sData_*.h5'%partition)):
@@ -51,8 +54,8 @@ def jitter_pointcloud(pointcloud, sigma=0.01, clip=0.02):
 
 
 class ModelNet40(Dataset):
-    def __init__(self, num_points, partition='train'):
-        self.point_clouds, self.transformed_point_clouds = load_data(partition)
+    def __init__(self, num_points, partition='train', debug = False):
+        self.point_clouds, self.transformed_point_clouds = load_data(partition, debug)
         self.partition = partition
 
     def __getitem__(self, item):
