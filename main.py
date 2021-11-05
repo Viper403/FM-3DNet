@@ -50,18 +50,52 @@ def train(args):
 
     scheduler = CosineAnnealingLR(opt, args.epochs, eta_min=args.lr)
     
+    # optionally resume from a checkpoint
+    # ximin
+    if args.model_path:
+        if os.path.isfile(args.model_path):
+            print("=> loading checkpoint '{}'".format(args.model_path))
+            checkpoint = torch.load(args.model_path)
+            args.start_epoch = checkpoint['epoch']
+            model.module.DGCNN.load_state_dict(checkpoint['state_dict'])
+            # model.load_state_dict(checkpoint['state_dict'])
+            opt.load_state_dict(checkpoint['optimizer'])
+            scheduler.load_state_dict(checkpoint['scheduler'])
+            print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.model_path, checkpoint['epoch']))
+        else:
+            print("=> no checkpoint found at '{}'".format(args.model_path))
+
     loss_function = contrastive_loss(args).to(device)
 
+# <<<<<<< HEAD
+#     # best_test_acc = 0
+#     total_time = 0
+#     ### saving the loss and the batch_size_count
+#     train_loss_list = np.empty((0, 4)) ## 
+#     train_count_list = []
+#     total_count_train = 0
+#     total_count_test = 0
+#     test_loss_list = np.empty((0, 4))
+#     test_count_list = []
+#     for epoch in range(args.epochs):
+# =======
     # best_test_acc = 0
     total_time = 0
-    ### saving the loss and the batch_size_count
+    # ximin
+    if 'start_epoch' in args:
+        start_epoch = args.start_epoch + 1
+    else:
+        start_epoch = 0
     train_loss_list = np.empty((0, 4)) ## 
     train_count_list = []
     total_count_train = 0
     total_count_test = 0
     test_loss_list = np.empty((0, 4))
     test_count_list = []
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
+        # scheduler.step()
+# >>>>>>> 2d64822f96f9c6a6d8e077908056502775cd7ec9
         ####################
         # Train
         ####################
@@ -86,6 +120,27 @@ def train(args):
             # final_loss_list.append(final_loss.data)
             opt.step()
             count += batch_size
+# <<<<<<< HEAD
+#             total_count_train += batch_size
+#             train_count_list.append(total_count_train)
+#             batch_time = time() - t0
+#             epoch_time += batch_time
+
+#             if count % 256 == 0:
+#                 outstr = 'Train epoch %d: batch_num %d, final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f' \
+#                         % (epoch, count, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3])      
+#                 print(outstr)      
+#         scheduler.step()            
+#         outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
+#                     % (epoch, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3], epoch_time)     
+#         total_time += epoch_time
+#         print(outstr)   
+
+        
+# =======
+
+            # ximin
+            # print(f"training {count}")
             total_count_train += batch_size
             train_count_list.append(total_count_train)
             batch_time = time() - t0
@@ -99,9 +154,21 @@ def train(args):
         outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
                     % (epoch, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3], epoch_time)     
         total_time += epoch_time
-        print(outstr)   
+        # outstr = 'Train %d, loss: %.6f' % (epoch,
+        #                                     final_loss_list[-1],
+        #                                     )
+        # ximin
+        print(outstr)
+        checkpoint = {
+            "state_dict": model.module.DGCNN.state_dict(), 
+            "epoch": epoch,
+            "optimizer": opt.state_dict(),
+            "scheduler": scheduler.state_dict()
+        }
+        filename = 'checkpoints/'+args.exp_name+'/'+'models/'+f'{epoch}.pth'
+        torch.save(checkpoint, filename)
 
-        
+# >>>>>>> 2d64822f96f9c6a6d8e077908056502775cd7ec9
         ####################
         # Test
         ####################
@@ -166,12 +233,17 @@ def save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list
         ax.set_title(loss_name[i] + ' for testing')   
         ax.set_xlabel("epoch")     
         ax.set_ylabel("loss")
-
-
     # Save the full figure...
     os.remove('Loss.jpg')
     fig.savefig('Loss.jpg')
 
+# <<<<<<< HEAD
+#     # Save the full figure...
+#     os.remove('Loss.jpg')
+#     fig.savefig('Loss.jpg')
+
+# =======
+# >>>>>>> 2d64822f96f9c6a6d8e077908056502775cd7ec9
 def test(args):  #not written
     test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
                              batch_size=args.test_batch_size, shuffle=True, drop_last=False)
@@ -181,7 +253,10 @@ def test(args):  #not written
     #Try to load models
     model = DGCNN(args).to(device)
     model = nn.DataParallel(model)
-    model.load_state_dict(torch.load(args.model_path))
+    # ximin
+    checkpoint = torch.load(args.model_path)
+    model.module.load_state_dict(checkpoint['state_dict'])
+    # model.load_state_dict(torch.load(args.model_path))
     model = model.eval()
     test_acc = 0.0
     count = 0.0
@@ -198,6 +273,11 @@ def test(args):  #not written
         test_pred.append(preds.detach().cpu().numpy())
     test_true = np.concatenate(test_true)
     test_pred = np.concatenate(test_pred)
+
+    # ximin
+    print(test_true.shape)
+    print(test_pred.shape)
+
     test_acc = metrics.accuracy_score(test_true, test_pred)
     avg_per_class_acc = metrics.balanced_accuracy_score(test_true, test_pred)
     outstr = 'Test :: test acc: %.6f, test avg acc: %.6f'%(test_acc, avg_per_class_acc)

@@ -135,18 +135,22 @@ def readH5():
 
 
 def data_preprocess(partition):
-    # start_index_list = [0, 6, 11, 17, 23]
-    # end_index_list = [5, 10, 16, 22, 28]
+    # ximin
+    start_index_list = [0, 6, 11, 17, 23]
+    end_index_list = [5, 10, 16, 22, 28]
     if partition=='train':
-        start_index_list = [0, 2048, 4096, 6144, 8192]
-        end_index_list = [2048, 4096, 6144, 8192, 9840]
+        # ximin
+        # start_index_list = [0, 2048, 4096, 6144, 8192]
+        # end_index_list = [2048, 4096, 6144, 8192, 9840]
         for h5_index in range(0, 5):
             point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list = pairing(start_index_list[h5_index], end_index_list[h5_index])
             # save H5files
             saveH5(point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list, "trainData_{}.h5".format(str(h5_index)))
     else:
-        point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list = pairing(0,2048)
-        saveH5(point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list,"testData.h5")
+        # ximin
+        point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list = pairing(0,5)
+        # point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list = pairing(0,2048)
+        saveH5(point_clouds_list, transformed_point_clouds_list, translation_list, rotation_list,"testData_0.h5")
 if __name__ == '__main__':
-    data_preprocess('test')
+    data_preprocess('train')
     #readH5()
