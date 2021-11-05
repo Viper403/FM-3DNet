@@ -68,19 +68,6 @@ def train(args):
 
     loss_function = contrastive_loss(args).to(device)
 
-# <<<<<<< HEAD
-#     # best_test_acc = 0
-#     total_time = 0
-#     ### saving the loss and the batch_size_count
-#     train_loss_list = np.empty((0, 4)) ## 
-#     train_count_list = []
-#     total_count_train = 0
-#     total_count_test = 0
-#     test_loss_list = np.empty((0, 4))
-#     test_count_list = []
-#     for epoch in range(args.epochs):
-# =======
-    # best_test_acc = 0
     total_time = 0
     # ximin
     if 'start_epoch' in args:
@@ -94,16 +81,9 @@ def train(args):
     test_loss_list = np.empty((0, 4))
     test_count_list = []
     for epoch in range(start_epoch, args.epochs):
-        # scheduler.step()
-# >>>>>>> 2d64822f96f9c6a6d8e077908056502775cd7ec9
-        ####################
-        # Train
-        ####################
-
         count = 0
         epoch_time = 0
         model.train()
-        # final_loss_list = list()
         for pointcloud, transformed_point_cloud in train_loader:
             t0 = time()
             pointcloud = pointcloud.to(device)  #b*1024*3
@@ -117,30 +97,8 @@ def train(args):
             final_loss.backward()
             ## stack the lose into storge
             train_loss_list = np.vstack((train_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
-            # final_loss_list.append(final_loss.data)
             opt.step()
             count += batch_size
-# <<<<<<< HEAD
-#             total_count_train += batch_size
-#             train_count_list.append(total_count_train)
-#             batch_time = time() - t0
-#             epoch_time += batch_time
-
-#             if count % 256 == 0:
-#                 outstr = 'Train epoch %d: batch_num %d, final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f' \
-#                         % (epoch, count, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3])      
-#                 print(outstr)      
-#         scheduler.step()            
-#         outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
-#                     % (epoch, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3], epoch_time)     
-#         total_time += epoch_time
-#         print(outstr)   
-
-        
-# =======
-
-            # ximin
-            # print(f"training {count}")
             total_count_train += batch_size
             train_count_list.append(total_count_train)
             batch_time = time() - t0
@@ -154,10 +112,6 @@ def train(args):
         outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
                     % (epoch, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3], epoch_time)     
         total_time += epoch_time
-        # outstr = 'Train %d, loss: %.6f' % (epoch,
-        #                                     final_loss_list[-1],
-        #                                     )
-        # ximin
         print(outstr)
         checkpoint = {
             "state_dict": model.module.DGCNN.state_dict(), 
@@ -167,16 +121,10 @@ def train(args):
         }
         filename = 'checkpoints/'+args.exp_name+'/'+'models/'+f'{epoch}.pth'
         torch.save(checkpoint, filename)
-
-# >>>>>>> 2d64822f96f9c6a6d8e077908056502775cd7ec9
-        ####################
-        # Test
-        ####################
         epoch_time = 0
 
         count = 0
         model.eval()
-        # test_loss_list = list()
         for pointcloud, transformed_point_cloud in test_loader:
             t0 = time()
             pointcloud = pointcloud.to(device)  # b*1024*3
@@ -187,7 +135,6 @@ def train(args):
             fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
             final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
             test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
-            # test_loss_list.append(final_loss.data())
             count += batch_size
             total_count_test += batch_size
             test_count_list.append(total_count_test)
@@ -237,13 +184,6 @@ def save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list
     os.remove('Loss.jpg')
     fig.savefig('Loss.jpg')
 
-# <<<<<<< HEAD
-#     # Save the full figure...
-#     os.remove('Loss.jpg')
-#     fig.savefig('Loss.jpg')
-
-# =======
-# >>>>>>> 2d64822f96f9c6a6d8e077908056502775cd7ec9
 def test(args):  #not written
     test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
                              batch_size=args.test_batch_size, shuffle=True, drop_last=False)
