@@ -55,7 +55,7 @@ class DGCNN(nn.Module):
         self.bn2 = nn.BatchNorm2d(64)
         self.bn3 = nn.BatchNorm2d(128)
         self.bn4 = nn.BatchNorm2d(256)
-        self.bn5 = nn.BatchNorm1d(args.emb_dims//2)
+        self.bn5 = nn.BatchNorm1d(args.emb_dims)
 
         self.conv1 = nn.Sequential(nn.Conv2d(6, 64, kernel_size=1, bias=False),
                                    self.bn1,
@@ -69,7 +69,7 @@ class DGCNN(nn.Module):
         self.conv4 = nn.Sequential(nn.Conv2d(128*2, 256, kernel_size=1, bias=False),
                                    self.bn4,
                                    nn.LeakyReLU(negative_slope=0.2))
-        self.conv5 = nn.Sequential(nn.Conv1d(512, args.emb_dims//2, kernel_size=1, bias=False),
+        self.conv5 = nn.Sequential(nn.Conv1d(512, args.emb_dims, kernel_size=1, bias=False),
                                    self.bn5,
                                    nn.LeakyReLU(negative_slope=0.2))
         self.linear1 = nn.Linear(args.emb_dims*2, 512, bias=False)
@@ -162,12 +162,12 @@ class FM3D(nn.Module):
             #          bias=False),
             Modified_softmax(axis=2)
         )
-        self.bn1 = nn.BatchNorm1d(256)
-        self.bn2 = nn.BatchNorm1d(512)
-        self.predictor = nn.Sequential(nn.Conv1d(512, 256, kernel_size=1, bias=False),
+        self.bn1 = nn.BatchNorm1d(args.emb_dims//2)
+        self.bn2 = nn.BatchNorm1d(args.emb_dims)
+        self.predictor = nn.Sequential(nn.Conv1d(args.emb_dims, args.emb_dims//2, kernel_size=1, bias=False),
                                         self.bn1,
                                         nn.LeakyReLU(negative_slope=0.2),
-                                        nn.Conv1d(256, 512, kernel_size=1, bias=False),
+                                        nn.Conv1d(args.emb_dims//2, args.emb_dims, kernel_size=1, bias=False),
                                         self.bn2,
                                         nn.LeakyReLU(negative_slope=0.2))
     def _KFNN(self, x, y, k=10):
