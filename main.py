@@ -11,6 +11,9 @@ from model import FM3D, DGCNN, contrastive_loss
 import numpy as np
 from torch.utils.data import DataLoader
 import sklearn.metrics as metrics
+from time import time
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def _init_():
@@ -26,9 +29,9 @@ def _init_():
     os.system('cp data.py checkpoints' + '/' + args.exp_name + '/' + 'data.py.backup')
 
 def train(args):
-    train_loader = DataLoader(ModelNet40(partition='train', num_points=args.num_points), num_workers=8,
+    train_loader = DataLoader(ModelNet40(partition='train', num_points=args.num_points, debug = args.debug), num_workers=8,
                               batch_size=args.batch_size, shuffle=True, drop_last=True)
-    test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points), num_workers=8,
+    test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug = args.debug), num_workers=8,
                              batch_size=args.test_batch_size, shuffle=True, drop_last=False)
 
     device = torch.device("cuda" if args.cuda else "cpu")
@@ -66,22 +69,24 @@ def train(args):
 
     loss_function = contrastive_loss(args).to(device)
 
-    best_test_acc = 0
+    total_time = 0
     # ximin
     if 'start_epoch' in args:
         start_epoch = args.start_epoch + 1
     else:
         start_epoch = 0
+    train_loss_list = np.empty((0, 4)) ## 
+    train_count_list = []
+    total_count_train = 0
+    total_count_test = 0
+    test_loss_list = np.empty((0, 4))
+    test_count_list = []
     for epoch in range(start_epoch, args.epochs):
-        scheduler.step()
-        ####################
-        # Train
-        ####################
-        #train_loss = 0.0
-        count = 0.0
+        count = 0
+        epoch_time = 0
         model.train()
-        final_loss_list = list()
         for pointcloud, transformed_point_cloud in train_loader:
+            t0 = time()
             pointcloud = pointcloud.to(device)  #b*1024*3
             transformed_point_cloud = transformed_point_cloud.to(device)
             pointcloud = pointcloud.permute(0, 2, 1) #b*3*1024
@@ -91,18 +96,23 @@ def train(args):
             fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
             final_loss, FB_loss, M_loss1,M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
             final_loss.backward()
-            final_loss_list.append(final_loss.data)
+            ## stack the lose into storge
+            train_loss_list = np.vstack((train_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
             opt.step()
-            #preds = logits.max(dim=1)[1]
             count += batch_size
+            total_count_train += batch_size
+            train_count_list.append(total_count_train)
+            batch_time = time() - t0
+            epoch_time += batch_time
 
-            # ximin
-            print(f"training {count}")
-
-        outstr = 'Train %d, loss: %.6f' % (epoch,
-                                            final_loss_list[-1],
-                                            )
-        # ximin
+            if count % 256 == 0:
+                outstr = 'Train epoch %d: batch_num %d, final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f' \
+                        % (epoch, count, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3])      
+                print(outstr)      
+        scheduler.step()            
+        outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
+                    % (epoch, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3], epoch_time)     
+        total_time += epoch_time
         print(outstr)
         checkpoint = {
             "DGCNN_state_dict": model.module.DGCNN.state_dict(), 
@@ -113,38 +123,68 @@ def train(args):
         }
         filename = 'checkpoints/'+args.exp_name+'/'+'models/'+f'{epoch}.pth'
         torch.save(checkpoint, filename)
+        epoch_time = 0
 
-        ####################
-        # Test
-        ####################
-        '''
-        test_loss = 0.0
-        count = 0.0
+        count = 0
         model.eval()
-        #test_pred = []
-        #test_true = []
-        test_loss_list = list()
         for pointcloud, transformed_point_cloud in test_loader:
+            t0 = time()
             pointcloud = pointcloud.to(device)  # b*1024*3
             transformed_point_cloud = transformed_point_cloud.to(device)
             pointcloud = pointcloud.permute(0, 2, 1)  # b*3*1024
             transformed_point_cloud = transformed_point_cloud.permute(0, 2, 1)
             batch_size = pointcloud.size()[0]
-            fe1_nograd, fe2_nograd, fe1_final, fe2_final, p = model(pointcloud, transformed_point_cloud)
-            final_loss, FB_loss, P_loss1, P_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, p)
-            test_loss_list.append(final_loss.data())
-            opt.step()
-            # preds = logits.max(dim=1)[1]
+            fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
+            final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
+            test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
             count += batch_size
-            # train_loss += loss.item() * batch_size
-            # train_true.append(label.cpu().numpy())
-            # train_pred.append(preds.detach().cpu().numpy())
-        # train_true = np.concatenate(train_true)
-        # train_pred = np.concatenate(train_pred)
-        outstr = 'Train %d, loss: %.6f' % (epoch,
-                                           test_loss_list[-1],
-                                           )
-        '''
+            total_count_test += batch_size
+            test_count_list.append(total_count_test)
+            batch_time = time() - t0
+            epoch_time += batch_time
+            if count % 256 == 0:
+                outstr = 'Test epoch %d: batch_num %d, final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f' \
+                        % (epoch, count, test_loss_list[-1, 0], test_loss_list[-1, 1], test_loss_list[-1, 2], test_loss_list[-1, 3]) 
+                print(outstr) 
+        outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
+                    % (epoch, test_loss_list[-1, 0], test_loss_list[-1, 1], test_loss_list[-1, 2], test_loss_list[-1, 3], epoch_time)     
+        total_time += epoch_time
+        print(outstr)  
+        print("############################################################")
+        print('Finish epoch %d, training loss is: %.6f, testing loss is: %.6f, total time is: %.3f'\
+                %(epoch, train_loss_list[-1, 0], test_loss_list[-1, 0], total_time))
+        save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list)
+        print("Save loss figure.")
+        print("############################################################")
+        print("\n\n\n")
+        
+
+
+def save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list):
+    training_dataset_num = 5
+    testing_dataset_num = 2
+    fig = plt.figure(figsize=(40, 20))
+    loss_name = ["Final_loss", "FB_loss", "M_loss1", "M_loss2"]
+    for i in range(4):
+        ax = fig.add_subplot(4,2, 2 * i + 1)
+        ax.plot(train_count_list, train_loss_list[:, i])
+        ## for one epoch, 2048 * 5 batch
+        ax.set_xticks(np.arange(0,train_count_list[-1] + 1,2048 * training_dataset_num))
+        ax.set_xticklabels((np.arange(0,train_count_list[-1] + 1, 2048 * training_dataset_num)/(2048 * training_dataset_num)).astype(np.int32))
+        ax.set_title(loss_name[i] + ' for training')
+        ax.set_xlabel("epoch")
+        ax.set_ylabel("loss")
+    for i in range(4):
+        ax = fig.add_subplot(4,2, 2 * i + 2)
+        ax.plot(test_count_list, test_loss_list[:, i])
+        ax.set_xticks(np.arange(0,test_count_list[-1] + 1,2048 * testing_dataset_num))
+        ax.set_xticklabels((np.arange(0,test_count_list[-1] + 1,2048 * testing_dataset_num)/(2048 * testing_dataset_num)).astype(np.int32))
+        ax.set_title(loss_name[i] + ' for testing')   
+        ax.set_xlabel("epoch")     
+        ax.set_ylabel("loss")
+    # Save the full figure...
+    os.remove('Loss.jpg')
+    fig.savefig('Loss.jpg')
 
 def test(args):  #not written
     test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
@@ -229,6 +269,8 @@ if __name__ == "__main__":
                         help='Num of nearest neighbors to use')
     parser.add_argument('--model_path', type=str, default='', metavar='N',
                         help='Pretrained model path')
+    parser.add_argument('--debug', type=bool, default=False,
+                        help='Debug mode')
     args = parser.parse_args()
 
     #_init_()

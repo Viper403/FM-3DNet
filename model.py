@@ -24,8 +24,8 @@ def get_graph_feature(x, k=20, idx=None):
     if idx is None:
         idx = knn(x, k=k)   # (batch_size, num_points, k)
     # ximin
-    # device = torch.device('cuda')
-    device = torch.device("cpu")
+    device = torch.device('cuda')
+    # device = torch.device("cpu")
 
     idx_base = torch.arange(0, batch_size, device=device).view(-1, 1, 1)*num_points
 
@@ -55,7 +55,7 @@ class DGCNN(nn.Module):
         self.bn2 = nn.BatchNorm2d(64)
         self.bn3 = nn.BatchNorm2d(128)
         self.bn4 = nn.BatchNorm2d(256)
-        self.bn5 = nn.BatchNorm1d(args.emb_dims//2)
+        self.bn5 = nn.BatchNorm1d(args.emb_dims)
 
         self.conv1 = nn.Sequential(nn.Conv2d(6, 64, kernel_size=1, bias=False),
                                    self.bn1,
@@ -69,7 +69,7 @@ class DGCNN(nn.Module):
         self.conv4 = nn.Sequential(nn.Conv2d(128*2, 256, kernel_size=1, bias=False),
                                    self.bn4,
                                    nn.LeakyReLU(negative_slope=0.2))
-        self.conv5 = nn.Sequential(nn.Conv1d(512, args.emb_dims//2, kernel_size=1, bias=False),
+        self.conv5 = nn.Sequential(nn.Conv1d(512, args.emb_dims, kernel_size=1, bias=False),
                                    self.bn5,
                                    nn.LeakyReLU(negative_slope=0.2))
         self.linear1 = nn.Linear(args.emb_dims*2, 512, bias=False)
@@ -162,12 +162,12 @@ class FM3D(nn.Module):
             #          bias=False),
             Modified_softmax(axis=2)
         )
-        self.bn1 = nn.BatchNorm1d(256)
-        self.bn2 = nn.BatchNorm1d(512)
-        self.predictor = nn.Sequential(nn.Conv1d(512, 256, kernel_size=1, bias=False),
+        self.bn1 = nn.BatchNorm1d(args.emb_dims//2)
+        self.bn2 = nn.BatchNorm1d(args.emb_dims)
+        self.predictor = nn.Sequential(nn.Conv1d(args.emb_dims, args.emb_dims//2, kernel_size=1, bias=False),
                                         self.bn1,
                                         nn.LeakyReLU(negative_slope=0.2),
-                                        nn.Conv1d(256, 512, kernel_size=1, bias=False),
+                                        nn.Conv1d(args.emb_dims//2, args.emb_dims, kernel_size=1, bias=False),
                                         self.bn2,
                                         nn.LeakyReLU(negative_slope=0.2))
     def _KFNN(self, x, y, k=10):
@@ -225,8 +225,8 @@ class contrastive_loss(nn.Module):
         bmean_loss_F1 = torch.mean(self._batch_frobenius_norm(fe1_nograd, fe2_final))
         bmean_loss_F2 = torch.mean(self._batch_frobenius_norm(fe2_nograd, fe1_final))
         # ximin
-        # I_N1 = torch.eye(n=M.shape[2]).cuda()
-        I_N1 = torch.eye(n=M.shape[2])
+        I_N1 = torch.eye(n=M.shape[2]).cuda()
+        # I_N1 = torch.eye(n=M.shape[2])
         
         I_N1 = I_N1.unsqueeze(0).repeat(batch_size, 1, 1)
         M_loss1 = torch.mean(
