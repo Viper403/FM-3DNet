@@ -54,7 +54,8 @@ def train(args):
             print("=> loading checkpoint '{}'".format(args.model_path))
             checkpoint = torch.load(args.model_path)
             args.start_epoch = checkpoint['epoch']
-            model.module.DGCNN.load_state_dict(checkpoint['state_dict'])
+            model.module.DGCNN.load_state_dict(checkpoint['DGCNN_state_dict'])
+            model.module.predictor.load_state_dict(checkpoint['predictor_state_dict'])
             # model.load_state_dict(checkpoint['state_dict'])
             opt.load_state_dict(checkpoint['optimizer'])
             scheduler.load_state_dict(checkpoint['scheduler'])
@@ -104,7 +105,8 @@ def train(args):
         # ximin
         print(outstr)
         checkpoint = {
-            "state_dict": model.module.DGCNN.state_dict(), 
+            "DGCNN_state_dict": model.module.DGCNN.state_dict(), 
+            "predictor_state_dict": model.module.predictor.state_dict(),
             "epoch": epoch,
             "optimizer": opt.state_dict(),
             "scheduler": scheduler.state_dict()
@@ -155,7 +157,7 @@ def test(args):  #not written
     model = nn.DataParallel(model)
     # ximin
     checkpoint = torch.load(args.model_path)
-    model.module.load_state_dict(checkpoint['state_dict'])
+    model.module.load_state_dict(checkpoint['DGCNN_state_dict'])
     # model.load_state_dict(torch.load(args.model_path))
     model = model.eval()
     test_acc = 0.0
