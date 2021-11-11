@@ -187,18 +187,25 @@ def save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list
     fig.savefig('Loss.jpg')
 
 def test(args):  #not written
-    test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
-                             batch_size=args.test_batch_size, shuffle=True, drop_last=False)
+    # test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
+    #                          batch_size=args.test_batch_size, shuffle=True, drop_last=False)
 
-    device = torch.device("cuda" if args.cuda else "cpu")
+    # device = torch.device("cuda" if args.cuda else "cpu")
+    device = torch.device("cpu")
 
     #Try to load models
     model = DGCNN(args).to(device)
     model = nn.DataParallel(model)
     # ximin
-    checkpoint = torch.load(args.model_path)
-    model.module.load_state_dict(checkpoint['DGCNN_state_dict'])
+    checkpoint = torch.load(args.model_path, map_location=device )
+    # model.module.load_state_dict(checkpoint['DGCNN_state_dict'])
     # model.load_state_dict(torch.load(args.model_path))
+
+    print(checkpoint['state_dict'].keys() )
+
+    exit(1)
+
+
     model = model.eval()
     test_acc = 0.0
     count = 0.0
