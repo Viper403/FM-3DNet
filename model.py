@@ -72,13 +72,13 @@ class DGCNN(nn.Module):
         self.conv5 = nn.Sequential(nn.Conv1d(512, args.emb_dims, kernel_size=1, bias=False),
                                    self.bn5,
                                    nn.LeakyReLU(negative_slope=0.2))
-        self.linear1 = nn.Linear(args.emb_dims*2, 512, bias=False)
-        self.bn6 = nn.BatchNorm1d(512)
-        self.dp1 = nn.Dropout(p=args.dropout)
-        self.linear2 = nn.Linear(512, 256)
-        self.bn7 = nn.BatchNorm1d(256)
-        self.dp2 = nn.Dropout(p=args.dropout)
-        self.linear3 = nn.Linear(256, output_channels)
+        #self.linear1 = nn.Linear(args.emb_dims*2, 512, bias=False)
+        #self.bn6 = nn.BatchNorm1d(512)
+        #self.dp1 = nn.Dropout(p=args.dropout)
+        #self.linear2 = nn.Linear(512, 256)
+        #self.bn7 = nn.BatchNorm1d(256)
+        #self.dp2 = nn.Dropout(p=args.dropout)
+        #self.linear3 = nn.Linear(256, output_channels)
 
     def forward(self, x):
         batch_size = x.size(0)

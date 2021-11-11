@@ -3,3 +3,8 @@ data
 *.h5
 __pycache__
 checkpoints
+classification/models
+exp
+*.zip
+.idea
+venv
