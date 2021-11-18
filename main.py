@@ -14,6 +14,7 @@ import sklearn.metrics as metrics
 from time import time
 import matplotlib.pyplot as plt
 import numpy as np
+from torchsummary import summary
 
 
 def _init_():
@@ -195,6 +196,11 @@ def test(args):  #not written
 
     #Try to load models
     model = DGCNN(args).to(device)
+
+    print(summary(model, (24, 3, 1024) ) )
+
+    exit(1)
+
     model = nn.DataParallel(model)
     # ximin
     checkpoint = torch.load(args.model_path, map_location=device )
@@ -202,9 +208,6 @@ def test(args):  #not written
     # model.load_state_dict(torch.load(args.model_path))
 
     print(checkpoint['state_dict'].keys() )
-
-    exit(1)
-
 
     model = model.eval()
     test_acc = 0.0
