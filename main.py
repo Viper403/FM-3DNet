@@ -188,7 +188,7 @@ def save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list
     fig.savefig('Loss.jpg')
 
 def test(args):  #not written
-    # test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points),
+    # test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug),
     #                          batch_size=args.test_batch_size, shuffle=True, drop_last=False)
 
     # device = torch.device("cuda" if args.cuda else "cpu")
