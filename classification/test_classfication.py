@@ -1,6 +1,11 @@
 #test classification on ModelNet40
 from __future__ import print_function
 import os
+import sys
+sys.path.append("/home/huijie/research/EECS542/FM-3DNet")
+
+
+import os
 import argparse
 import torch
 import torch.nn as nn
@@ -17,6 +22,8 @@ from time import time
 import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
+import time 
+import matplotlib.pyplot as plt
 
 def _init_():
     if not os.path.exists('checkpoints'):
@@ -45,13 +52,13 @@ def train(args):
     cla_model = Mclassification(args).to(device)
     cla_model = nn.DataParallel(cla_model)
     # initialize model
-    model_path = '../exp/models/200.pth'
+    model_path = '/home/huijie/research/EECS542/FM-3DNet/checkpoints/exp/models/20.pth'
     checkpoint = torch.load(model_path)
-    weights = checkpoint['state_dict']
+    weights = checkpoint['DGCNN_state_dict']
     #del some keys, it is because a mistake during training
-    del_keys = ["linear1.weight", "bn6.weight", "bn6.bias", "bn6.running_mean", "bn6.running_var", "bn6.num_batches_tracked", "linear2.weight", "linear2.bias", "bn7.weight", "bn7.bias", "bn7.running_mean", "bn7.running_var", "bn7.num_batches_tracked", "linear3.weight", "linear3.bias"]
-    for key in del_keys:
-        del weights[key]
+    # del_keys = ["linear1.weight", "bn6.weight", "bn6.bias", "bn6.running_mean", "bn6.running_var", "bn6.num_batches_tracked", "linear2.weight", "linear2.bias", "bn7.weight", "bn7.bias", "bn7.running_mean", "bn7.running_var", "bn7.num_batches_tracked", "linear3.weight", "linear3.bias"]
+    # for key in del_keys:
+    #     del weights[key]
     pre_model.module.load_state_dict(weights)
 
 
@@ -68,9 +75,14 @@ def train(args):
 
     best_test_acc = 0
 
-
+    train_accuracy_list = []
+    train_avg_accuracy_list = []
+    train_loss_list = []
+    test_accuracy_list = []
+    test_avg_accuracy_list = []
+    test_loss_list = []
     for epoch in range(args.epochs):
-
+        t = time.time()
         ####################
         # Train
         ####################
@@ -97,16 +109,22 @@ def train(args):
         scheduler.step()
         train_true = np.concatenate(train_true)
         train_pred = np.concatenate(train_pred)
-        outstr = 'Train %d, loss: %.6f, train acc: %.6f, train avg acc: %.6f' % (epoch,
+        train_accuracy = metrics.accuracy_score(train_true, train_pred)
+        train_avg_accuracy = metrics.balanced_accuracy_score(train_true, train_pred)
+        outstr = 'Train %d, loss: %.6f, train acc: %.6f, train avg acc: %.6f, time: %.3f, ' % (epoch,
                                                                                  train_loss * 1.0 / count,
-                                                                                 metrics.accuracy_score(
-                                                                                     train_true, train_pred),
-                                                                                 metrics.balanced_accuracy_score(
-                                                                                     train_true, train_pred))
+                                                                                 train_accuracy,
+                                                                                 train_avg_accuracy,
+                                                                                 time.time() - t
+                                                                                 )
+        train_accuracy_list.append(train_accuracy)
+        train_avg_accuracy_list.append(train_avg_accuracy)
+        train_loss_list.append(train_loss * 1.0 / count)
         print(outstr)
         ####################
         # Test
         ####################
+        t = time.time()
         test_loss = 0.0
         count = 0.0
         cla_model.eval()
@@ -128,14 +146,45 @@ def train(args):
         test_pred = np.concatenate(test_pred)
         test_acc = metrics.accuracy_score(test_true, test_pred)
         avg_per_class_acc = metrics.balanced_accuracy_score(test_true, test_pred)
-        outstr = 'Test %d, loss: %.6f, test acc: %.6f, test avg acc: %.6f' % (epoch,
+        outstr = 'Test %d, loss: %.6f, test acc: %.6f, test avg acc: %.6f, time: %.3f' % (epoch,
                                                                               test_loss * 1.0 / count,
                                                                               test_acc,
-                                                                              avg_per_class_acc)
+                                                                              avg_per_class_acc,
+                                                                              time.time() - t)
+        test_accuracy_list.append(test_acc)
+        test_avg_accuracy_list.append(avg_per_class_acc)
+        test_loss_list.append(test_loss * 1.0 / count)
         print(outstr)
         if test_acc >= best_test_acc:
             best_test_acc = test_acc
-            torch.save(cla_model.state_dict(), 'models/model%d.t7' % epoch)
+            torch.save(cla_model.state_dict(), 'classification/models/model%d.t7' % epoch)
+        
+        if epoch % 10 == 0:
+            save_loss([train_loss_list, train_accuracy_list, train_avg_accuracy_list],
+                      [test_loss_list, test_accuracy_list, test_avg_accuracy_list], 
+                      epoch + 1)
+
+def save_loss(train_list, test_list, epoch):
+    h = len(train_list)
+    fig = plt.figure(figsize=(20, 15))
+    loss_name = ["loss", "accuracy", "avg_accuracy"]
+    for i in range(h):
+        ax = fig.add_subplot(h,2, 2 * i + 1)
+        ax.plot(range(epoch), train_list[i])
+        ax.set_title(loss_name[i] + ' for training')
+        ax.set_xlabel("epoch")
+        ax.set_ylabel("loss")
+    for i in range(h):
+        ax = fig.add_subplot(h,2, 2 * i + 2)
+        ax.plot(range(epoch), test_list[i])
+        ax.set_title(loss_name[i] + ' for testing')   
+        ax.set_xlabel("epoch")     
+        ax.set_ylabel("loss")
+    # Save the full figure...
+    if os.path.exists('Loss_clas.jpg'):
+        os.remove('Loss_clas.jpg')
+    fig.savefig('Loss_clas.jpg')
+    plt.clf()
 
 if __name__ == '__main__':
     # Training settings

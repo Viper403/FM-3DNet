@@ -75,16 +75,41 @@ def train(args):
         start_epoch = args.start_epoch + 1
     else:
         start_epoch = 0
-    train_loss_list = np.empty((0, 4)) ## 
-    train_count_list = []
-    total_count_train = 0
-    total_count_test = 0
-    test_loss_list = np.empty((0, 4))
-    test_count_list = []
+    # train_loss_list = np.empty((0, 4)) ## 
+    # train_count_list = []
+    # total_count_train = 0
+    # total_count_test = 0
+    # test_loss_list = np.empty((0, 4))
+    # test_count_list = []
+
+    train_data = {
+        "Final_loss":[],
+        "FB_loss":[], 
+        "M_loss1":[], 
+        "M_loss2":[]
+    }
+    test_data = {
+        "Final_loss":[],
+        "FB_loss":[], 
+        "M_loss1":[], 
+        "M_loss2":[]
+    }
     for epoch in range(start_epoch, args.epochs):
         count = 0
         epoch_time = 0
         model.train()
+        train_epoch_data = {
+            "Final_loss":0,
+            "FB_loss":0, 
+            "M_loss1":0, 
+            "M_loss2":0
+        }
+        test_epoch_data = {
+            "Final_loss":0,
+            "FB_loss":0, 
+            "M_loss1":0, 
+            "M_loss2":0
+        }
         for pointcloud, transformed_point_cloud in train_loader:
             t0 = time()
             pointcloud = pointcloud.to(device)  #b*1024*3
@@ -97,21 +122,24 @@ def train(args):
             final_loss, FB_loss, M_loss1,M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
             final_loss.backward()
             ## stack the lose into storge
-            train_loss_list = np.vstack((train_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
+            # train_loss_list = np.vstack((train_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
             opt.step()
-            count += batch_size
-            total_count_train += batch_size
-            train_count_list.append(total_count_train)
+            count += 1
+            # total_count_train += batch_size
+            # train_count_list.append(total_count_train)
             batch_time = time() - t0
             epoch_time += batch_time
-
-            if count % 256 == 0:
-                outstr = 'Train epoch %d: batch_num %d, final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f' \
-                        % (epoch, count, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3])      
-                print(outstr)      
+            train_epoch_data["Final_loss"] += final_loss
+            train_epoch_data["FB_loss"] += FB_loss
+            train_epoch_data["M_loss1"] += M_loss1
+            train_epoch_data["M_loss2"] += M_loss2
+        train_data["Final_loss"].append(train_epoch_data["Final_loss"]/count)
+        train_data["FB_loss"].append(train_epoch_data["FB_loss"]/count)
+        train_data["M_loss1"].append(train_epoch_data["M_loss1"]/count)
+        train_data["M_loss2"].append(train_epoch_data["M_loss2"]/count)
         scheduler.step()            
         outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
-                    % (epoch, train_loss_list[-1, 0], train_loss_list[-1, 1], train_loss_list[-1, 2], train_loss_list[-1, 3], epoch_time)     
+                    % (epoch, train_data["Final_loss"][-1], train_data["FB_loss"][-1], train_data["M_loss1"][-1], train_data["M_loss2"][-1], epoch_time)     
         total_time += epoch_time
         print(outstr)
         checkpoint = {
@@ -138,53 +166,56 @@ def train(args):
             final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
             test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
             count += batch_size
-            total_count_test += batch_size
-            test_count_list.append(total_count_test)
+            # total_count_test += batch_size
+            # test_count_list.append(total_count_test)
             batch_time = time() - t0
             epoch_time += batch_time
-            if count % 256 == 0:
-                outstr = 'Test epoch %d: batch_num %d, final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f' \
-                        % (epoch, count, test_loss_list[-1, 0], test_loss_list[-1, 1], test_loss_list[-1, 2], test_loss_list[-1, 3]) 
-                print(outstr) 
+            test_epoch_data["Final_loss"] += final_loss
+            test_epoch_data["FB_loss"] += FB_loss
+            test_epoch_data["M_loss1"] += M_loss1
+            test_epoch_data["M_loss2"] += M_loss2
+        test_data["Final_loss"].append(test_epoch_data["Final_loss"]/count)
+        test_data["FB_loss"].append(test_epoch_data["FB_loss"]/count)
+        test_data["M_loss1"].append(test_epoch_data["M_loss1"]/count)
+        test_data["M_loss2"].append(test_epoch_data["M_loss2"]/count)
         outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
-                    % (epoch, test_loss_list[-1, 0], test_loss_list[-1, 1], test_loss_list[-1, 2], test_loss_list[-1, 3], epoch_time)     
+                    % (epoch, test_data["Final_loss"][-1], test_data["FB_loss"][-1], test_data["M_loss1"][-1], test_data["M_loss2"][-1], epoch_time)     
         total_time += epoch_time
         print(outstr)  
         print("############################################################")
-        print('Finish epoch %d, training loss is: %.6f, testing loss is: %.6f, total time is: %.3f'\
-                %(epoch, train_loss_list[-1, 0], test_loss_list[-1, 0], total_time))
-        save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list)
+        # print('Finish epoch %d, training loss is: %.6f, testing loss is: %.6f, total time is: %.3f'\
+        #         %(epoch, train_loss_list[-1, 0], test_loss_list[-1, 0], total_time))
+        
+        save_loss([train_data["Final_loss"], train_data["FB_loss"], train_data["M_loss1"], train_data["M_loss2"]],
+                  [test_data["Final_loss"], test_data["FB_loss"], test_data["M_loss1"], test_data["M_loss2"]],
+                  epoch+1
+                  )
         print("Save loss figure.")
         print("############################################################")
         print("\n\n\n")
         
 
-
-def save_loss(train_loss_list, test_loss_list, train_count_list, test_count_list):
-    training_dataset_num = 5
-    testing_dataset_num = 2
-    fig = plt.figure(figsize=(40, 20))
+def save_loss(train_list, test_list, epoch):
+    h = len(train_list)
+    fig = plt.figure(figsize=(20, 20))
     loss_name = ["Final_loss", "FB_loss", "M_loss1", "M_loss2"]
-    for i in range(4):
-        ax = fig.add_subplot(4,2, 2 * i + 1)
-        ax.plot(train_count_list, train_loss_list[:, i])
-        ## for one epoch, 2048 * 5 batch
-        ax.set_xticks(np.arange(0,train_count_list[-1] + 1,2048 * training_dataset_num))
-        ax.set_xticklabels((np.arange(0,train_count_list[-1] + 1, 2048 * training_dataset_num)/(2048 * training_dataset_num)).astype(np.int32))
+    for i in range(h):
+        ax = fig.add_subplot(h,2, 2 * i + 1)
+        ax.plot(range(epoch), train_list[i])
         ax.set_title(loss_name[i] + ' for training')
         ax.set_xlabel("epoch")
         ax.set_ylabel("loss")
-    for i in range(4):
-        ax = fig.add_subplot(4,2, 2 * i + 2)
-        ax.plot(test_count_list, test_loss_list[:, i])
-        ax.set_xticks(np.arange(0,test_count_list[-1] + 1,2048 * testing_dataset_num))
-        ax.set_xticklabels((np.arange(0,test_count_list[-1] + 1,2048 * testing_dataset_num)/(2048 * testing_dataset_num)).astype(np.int32))
+    for i in range(h):
+        ax = fig.add_subplot(h,2, 2 * i + 2)
+        ax.plot(range(epoch), test_list[i])
         ax.set_title(loss_name[i] + ' for testing')   
         ax.set_xlabel("epoch")     
         ax.set_ylabel("loss")
     # Save the full figure...
-    os.remove('Loss.jpg')
+    if os.path.exists('Loss.jpg'):
+        os.remove('Loss.jpg')
     fig.savefig('Loss.jpg')
+    plt.clf()
 
 def test(args):  #not written
     # test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug),
