@@ -9,3 +9,4 @@ classification/models
 venv
 exp
 *.txt
+classification/models_best_backbone/

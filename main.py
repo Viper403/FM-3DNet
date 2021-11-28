@@ -6,15 +6,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from data import ModelNet40
-from model import FM3D, DGCNN, contrastive_loss
+from data import ModelNet40, ShapeNetPart
+from model import FM3D_part_seg, DGCNN, contrastive_loss
 import numpy as np
 from torch.utils.data import DataLoader
 import sklearn.metrics as metrics
 from time import time
 import matplotlib.pyplot as plt
 import numpy as np
-from torchsummary import summary
 
 
 def _init_():
@@ -30,15 +29,19 @@ def _init_():
     os.system('cp data.py checkpoints' + '/' + args.exp_name + '/' + 'data.py.backup')
 
 def train(args):
-    train_loader = DataLoader(ModelNet40(partition='train', num_points=args.num_points, debug = args.debug), num_workers=8,
-                              batch_size=args.batch_size, shuffle=True, drop_last=True)
-    test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug = args.debug), num_workers=8,
-                             batch_size=args.test_batch_size, shuffle=True, drop_last=False)
+    train_dataset = ShapeNetPart(partition='trainval', num_points=args.num_points, class_choice=args.class_choice)
+    if (len(train_dataset) < 100):
+        drop_last = False
+    else:
+        drop_last = True
+    train_loader = DataLoader(train_dataset, num_workers=8, batch_size=args.batch_size, shuffle=True, drop_last=drop_last)
+    test_loader = DataLoader(ShapeNetPart(partition='test', num_points=args.num_points, class_choice=args.class_choice), 
+                            num_workers=8, batch_size=args.test_batch_size, shuffle=True, drop_last=False)
 
     device = torch.device("cuda" if args.cuda else "cpu")
 
     #Try to load models
-    model = FM3D(args).to(device)
+    model = FM3D_part_seg(args).to(device)
     model = nn.DataParallel(model)
     print("Let's use", torch.cuda.device_count(), "GPUs!")
 
@@ -216,7 +219,7 @@ def save_loss(train_list, test_list, epoch):
     if os.path.exists('Loss.jpg'):
         os.remove('Loss.jpg')
     fig.savefig('Loss.jpg')
-    plt.clf()
+    plt.close()
 
 def test(args):  #not written
     # test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug),
@@ -269,7 +272,7 @@ def test(args):  #not written
 if __name__ == "__main__":
     # Training settings
     parser = argparse.ArgumentParser(description='Point Cloud Recognition')
-    parser.add_argument('--exp_name', type=str, default='exp', metavar='N',
+    parser.add_argument('--exp_name', type=str, default='part_seg_backbone', metavar='N',
                         help='Name of the experiment')
     parser.add_argument('--model', type=str, default='dgcnn', metavar='N',
                         choices=['pointnet', 'dgcnn'],
