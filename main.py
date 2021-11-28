@@ -6,6 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from torchsummary import summary
+
 from data import ModelNet40, ShapeNetPart
 from model import FM3D_part_seg, DGCNN, contrastive_loss
 import numpy as np
@@ -29,14 +31,19 @@ def _init_():
     os.system('cp data.py checkpoints' + '/' + args.exp_name + '/' + 'data.py.backup')
 
 def train(args):
-    train_dataset = ShapeNetPart(partition='trainval', num_points=args.num_points, class_choice=args.class_choice)
-    if (len(train_dataset) < 100):
-        drop_last = False
-    else:
-        drop_last = True
-    train_loader = DataLoader(train_dataset, num_workers=8, batch_size=args.batch_size, shuffle=True, drop_last=drop_last)
-    test_loader = DataLoader(ShapeNetPart(partition='test', num_points=args.num_points, class_choice=args.class_choice), 
-                            num_workers=8, batch_size=args.test_batch_size, shuffle=True, drop_last=False)
+    train_loader = DataLoader(ModelNet40(partition='train', num_points=args.num_points, debug=args.debug),
+                              num_workers=8,
+                              batch_size=args.batch_size, shuffle=True, drop_last=True)
+    test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug), num_workers=8,
+                             batch_size=args.test_batch_size, shuffle=True, drop_last=False)
+    # train_dataset = ShapeNetPart(partition='trainval', num_points=args.num_points, class_choice=args.class_choice)
+    # if (len(train_dataset) < 100):
+    #     drop_last = False
+    # else:
+    #     drop_last = True
+    # train_loader = DataLoader(train_dataset, num_workers=8, batch_size=args.batch_size, shuffle=True, drop_last=drop_last)
+    # test_loader = DataLoader(ShapeNetPart(partition='test', num_points=args.num_points, class_choice=args.class_choice),
+    #                         num_workers=8, batch_size=args.test_batch_size, shuffle=True, drop_last=False)
 
     device = torch.device("cuda" if args.cuda else "cpu")
 
@@ -61,7 +68,7 @@ def train(args):
             print("=> loading checkpoint '{}'".format(args.model_path))
             checkpoint = torch.load(args.model_path)
             args.start_epoch = checkpoint['epoch']
-            model.module.DGCNN.load_state_dict(checkpoint['DGCNN_state_dict'])
+            model.module.DGCNN_partseg.load_state_dict(checkpoint['DGCNN_state_dict'])
             model.module.predictor.load_state_dict(checkpoint['predictor_state_dict'])
             # model.load_state_dict(checkpoint['state_dict'])
             opt.load_state_dict(checkpoint['optimizer'])
@@ -147,7 +154,7 @@ def train(args):
         total_time += epoch_time
         print(outstr)
         checkpoint = {
-            "DGCNN_state_dict": model.module.DGCNN.state_dict(), 
+            "DGCNN_state_dict": model.module.DGCNN_partseg.state_dict(),
             "predictor_state_dict": model.module.predictor.state_dict(),
             "epoch": epoch,
             "optimizer": opt.state_dict(),

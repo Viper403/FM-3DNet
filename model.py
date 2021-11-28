@@ -165,10 +165,10 @@ class Transform_Net(nn.Module):
 
 
 class DGCNN_partseg(nn.Module):
-    def __init__(self, args, seg_num_all):
+    def __init__(self, args):
         super(DGCNN_partseg, self).__init__()
         self.args = args
-        self.seg_num_all = seg_num_all
+        # self.seg_num_all = seg_num_all
         self.k = args.k
         self.transform_net = Transform_Net(args)
         
@@ -327,7 +327,7 @@ class FM3D(nn.Module):
 
 class FM3D_part_seg(nn.Module):
     def __init__(self, args):
-        super(FM3D, self).__init__()
+        super(FM3D_part_seg, self).__init__()
         self.args = args
         self.DGCNN_partseg = DGCNN_partseg(args)
         self.DeSmooth = nn.Sequential(
