@@ -52,7 +52,7 @@ def train(args):
     cla_model = Mclassification(args).to(device)
     cla_model = nn.DataParallel(cla_model)
     # initialize model
-    model_path = '/home/huijie/research/EECS542/FM-3DNet/checkpoints/exp/models/20.pth'
+    model_path = '/home/huijie/research/EECS542/FM-3DNet/checkpoints/exp/models/50.pth'
     checkpoint = torch.load(model_path)
     weights = checkpoint['DGCNN_state_dict']
     #del some keys, it is because a mistake during training
@@ -196,13 +196,13 @@ if __name__ == '__main__':
                         help='Model to use, [pointnet, dgcnn]')
     parser.add_argument('--dataset', type=str, default='modelnet40', metavar='N',
                         choices=['modelnet40'])
-    parser.add_argument('--batch_size', type=int, default=8, metavar='batch_size',
+    parser.add_argument('--batch_size', type=int, default=32, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--test_batch_size', type=int, default=8, metavar='batch_size',
+    parser.add_argument('--test_batch_size', type=int, default=32, metavar='batch_size',
                         help='Size of batch)')
     parser.add_argument('--epochs', type=int, default=250, metavar='N',
                         help='number of episode to train ')
-    parser.add_argument('--use_sgd', type=bool, default=False,
+    parser.add_argument('--use_sgd', type=bool, default=True,
                         help='Use SGD')
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001, 0.1 if using sgd)')

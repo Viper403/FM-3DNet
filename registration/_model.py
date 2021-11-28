@@ -277,16 +277,17 @@ class PointNet(nn.Module):
 class DGCNN(nn.Module):
     def __init__(self, emb_dims=512):
         super(DGCNN, self).__init__()
+        self.emb_dims = emb_dims
         self.conv1 = nn.Conv2d(6, 64, kernel_size=1, bias=False)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=1, bias=False)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=1, bias=False)
         self.conv4 = nn.Conv2d(128, 256, kernel_size=1, bias=False)
-        self.conv5 = nn.Conv2d(512, emb_dims, kernel_size=1, bias=False)
+        self.conv5 = nn.Conv2d(512, self.emb_dims, kernel_size=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.bn2 = nn.BatchNorm2d(64)
         self.bn3 = nn.BatchNorm2d(128)
         self.bn4 = nn.BatchNorm2d(256)
-        self.bn5 = nn.BatchNorm2d(emb_dims)
+        self.bn5 = nn.BatchNorm2d(self.emb_dims)
 
     def forward(self, x):
         batch_size, num_dims, num_points = x.size()

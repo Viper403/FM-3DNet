@@ -17,11 +17,12 @@ from util import quat2mat
 
 # todo: comment
 # os.chdir("../")
-print( os.getcwd() )
-print( os.listdir() )
-sys.path.append("../")
-
-from model import DGCNN
+# print( os.getcwd() )
+# print( os.listdir() )
+# sys.path.append("../")
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+# print(sys.path)
+import model 
 
 
 # Part of the code is referred from: http://nlp.seas.harvard.edu/2018/04/03/attention.html#positional-encoding
@@ -342,7 +343,7 @@ class RegModel(nn.Module):
         super(RegModel, self).__init__()
         self.emb_dims = args.emb_dims
         self.cycle = args.cycle
-        self.emb_nn = DGCNN(args)
+        self.emb_nn = model.DGCNN(args)
 
         self.pointer = Transformer(args=args)
 

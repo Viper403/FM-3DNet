@@ -28,8 +28,8 @@ def download():
 
 def load_data(partition):
     # download()
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DATA_DIR = os.path.join(BASE_DIR, 'data_raw')
     all_data = []
     all_label = []
     for h5_name in glob.glob(os.path.join(DATA_DIR, 'ply_data_%s*.h5' % partition)):
@@ -130,5 +130,6 @@ if __name__ == '__main__':
     train = ModelNet40(1024)
     test = ModelNet40(1024, 'test')
     for data in train:
+        print(len(data[0][0]))
         print(len(data))
         break
