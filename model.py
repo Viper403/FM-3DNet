@@ -199,7 +199,7 @@ class DGCNN_partseg(nn.Module):
                                    nn.LeakyReLU(negative_slope=0.2))
         
 
-    def forward(self, x, l):
+    def forward(self, x):
         batch_size = x.size(0)
         num_points = x.size(2)
 
@@ -352,7 +352,7 @@ class FM3D_part_seg(nn.Module):
             x, y = a.float(), b.float()
             bs, num_points_x, points_dim = x.size()
             bs, num_points_y, points_dim = y.size()
-            assert(num_points_x==1024 or num_points_x==256)
+            assert(num_points_x==1024 or num_points_x==2048)
 
             xx = torch.pow(x, 2).sum(2)
             yy = torch.pow(y, 2).sum(2)

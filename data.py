@@ -20,15 +20,15 @@ def download():
         os.system('rm %s' % (zipfile))
 
 
-def load_data(partition, debug):
+def load_data(partition, debug,path):
     # download()
     if debug:
-        DATA_DIR = './data/debug'
+        DATA_DIR = os.path.join(path,'debug')
     else:
-        DATA_DIR = './data'
+        DATA_DIR = path
     all_point_clouds = []
     all_transformed_point_clouds = []
-    for h5_name in glob.glob(os.path.join(DATA_DIR, '%sData_*.h5'%partition)):
+    for h5_name in glob.glob(os.path.join(DATA_DIR, '%sDataPart_*.h5'%partition)):
         f = h5py.File(h5_name)
         point_clouds = f['point_clouds'][:].astype('float32')
         transformed_point_clouds = f['transformed_point_clouds'][:].astype('float32')
@@ -55,8 +55,8 @@ def jitter_pointcloud(pointcloud, sigma=0.01, clip=0.02):
 
 
 class ModelNet40(Dataset):
-    def __init__(self, num_points, partition='train', debug = False):
-        self.point_clouds, self.transformed_point_clouds = load_data(partition, debug)
+    def __init__(self, num_points, path, partition='train', debug = False):
+        self.point_clouds, self.transformed_point_clouds = load_data(partition, debug, path)
         self.partition = partition
 
     def __getitem__(self, item):

@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from torchsummary import summary
 
 from data import ModelNet40, ShapeNetPart
 from model import FM3D_part_seg, DGCNN, contrastive_loss
@@ -18,6 +17,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+class IOStream:
+    def __init__(self, path):
+        self.f = open(path, 'a')
+
+    def cprint(self, text):
+        print(text)
+        self.f.write(text + '\n')
+        self.f.flush()
+
+    def close(self):
+        self.f.close()
+
 def _init_():
     if not os.path.exists('checkpoints'):
         os.makedirs('checkpoints')
@@ -27,14 +38,14 @@ def _init_():
         os.makedirs('checkpoints/'+args.exp_name+'/'+'models')
     os.system('cp main.py checkpoints'+'/'+args.exp_name+'/'+'main.py.backup')
     os.system('cp model.py checkpoints' + '/' + args.exp_name + '/' + 'model.py.backup')
-    os.system('cp util.py checkpoints' + '/' + args.exp_name + '/' + 'util.py.backup')
+    #os.system('cp util.py checkpoints' + '/' + args.exp_name + '/' + 'util.py.backup')
     os.system('cp data.py checkpoints' + '/' + args.exp_name + '/' + 'data.py.backup')
 
-def train(args):
-    train_loader = DataLoader(ModelNet40(partition='train', num_points=args.num_points, debug=args.debug),
+def train(args,textio):
+    train_loader = DataLoader(ModelNet40(partition='train', num_points=args.num_points, debug=args.debug, path=args.datapath),
                               num_workers=8,
                               batch_size=args.batch_size, shuffle=True, drop_last=True)
-    test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug), num_workers=8,
+    test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug,path=args.datapath), num_workers=8,
                              batch_size=args.test_batch_size, shuffle=True, drop_last=False)
     # train_dataset = ShapeNetPart(partition='trainval', num_points=args.num_points, class_choice=args.class_choice)
     # if (len(train_dataset) < 100):
@@ -175,7 +186,7 @@ def train(args):
             batch_size = pointcloud.size()[0]
             fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
             final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
-            test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
+            # test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
             count += batch_size
             # total_count_test += batch_size
             # test_count_list.append(total_count_test)
@@ -192,8 +203,8 @@ def train(args):
         outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
                     % (epoch, test_data["Final_loss"][-1], test_data["FB_loss"][-1], test_data["M_loss1"][-1], test_data["M_loss2"][-1], epoch_time)     
         total_time += epoch_time
-        print(outstr)  
-        print("############################################################")
+        textio.cprint(outstr)  
+        textio.cprint("############################################################")
         # print('Finish epoch %d, training loss is: %.6f, testing loss is: %.6f, total time is: %.3f'\
         #         %(epoch, train_loss_list[-1, 0], test_loss_list[-1, 0], total_time))
         
@@ -201,9 +212,9 @@ def train(args):
                   [test_data["Final_loss"], test_data["FB_loss"], test_data["M_loss1"], test_data["M_loss2"]],
                   epoch+1
                   )
-        print("Save loss figure.")
-        print("############################################################")
-        print("\n\n\n")
+        textio.cprint("Save loss figure.")
+        textio.cprint("############################################################")
+        textio.cprint("\n\n\n")
         
 
 def save_loss(train_list, test_list, epoch):
@@ -281,18 +292,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Point Cloud Recognition')
     parser.add_argument('--exp_name', type=str, default='part_seg_backbone', metavar='N',
                         help='Name of the experiment')
-    parser.add_argument('--model', type=str, default='dgcnn', metavar='N',
-                        choices=['pointnet', 'dgcnn'],
-                        help='Model to use, [pointnet, dgcnn]')
+    #parser.add_argument('--model', type=str, default='dgcnn', metavar='N',
+    #                    choices=['pointnet', 'dgcnn'],
+    #                    help='Model to use, [pointnet, dgcnn]')
     parser.add_argument('--dataset', type=str, default='modelnet40', metavar='N',
                         choices=['modelnet40'])
+    parser.add_argument('--datapath',type=str, default='./data_part_seg',metavar='path')
     parser.add_argument('--batch_size', type=int, default=4, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--test_batch_size', type=int, default=4, metavar='batch_size',
+    parser.add_argument('--test_batch_size', type=int, default=1, metavar='batch_size',
                         help='Size of batch)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of episode to train ')
-    parser.add_argument('--use_sgd', type=bool, default=False,
+    parser.add_argument('--use_sgd', type=bool, default=True,
                         help='Use SGD')
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001, 0.1 if using sgd)')
@@ -304,13 +316,13 @@ if __name__ == "__main__":
                         help='random seed (default: 1)')
     parser.add_argument('--eval', type=bool,  default=False,
                         help='evaluate the model')
-    parser.add_argument('--num_points', type=int, default=1024,
+    parser.add_argument('--num_points', type=int, default=2048,
                         help='num of points to use')
     parser.add_argument('--dropout', type=float, default=0.5,
                         help='dropout rate')
     parser.add_argument('--emb_dims', type=int, default=1024, metavar='N',
                         help='Dimension of embeddings')
-    parser.add_argument('--input_pts', type=int, default=1024, metavar='N',
+    parser.add_argument('--input_pts', type=int, default=2048, metavar='N',
                         help='#')          
     parser.add_argument('--alpha1', type=float, default=0.1, metavar='N',
                         help='#')   
@@ -320,11 +332,11 @@ if __name__ == "__main__":
                         help='Num of nearest neighbors to use')
     parser.add_argument('--model_path', type=str, default='', metavar='N',
                         help='Pretrained model path')
-    parser.add_argument('--debug', type=bool, default=False,
+    parser.add_argument('--debug', type=bool, default=True,
                         help='Debug mode')
     args = parser.parse_args()
 
-    #_init_()
+    _init_()
 
     #io = IOStream('checkpoints/' + args.exp_name + '/run.log')
     #io.cprint(str(args))
@@ -332,7 +344,10 @@ if __name__ == "__main__":
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     torch.manual_seed(args.seed)
 
+    textio = IOStream('checkpoints/' + args.exp_name + '/run.log')
+    textio.cprint(str(args))
+
     if not args.eval:
-        train(args)
+        train(args,textio)
     else:
         test(args)
