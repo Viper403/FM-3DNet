@@ -47,13 +47,13 @@ def train(args,textio):
                               batch_size=args.batch_size, shuffle=True, drop_last=True)
     test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug,path=args.datapath), num_workers=8,
                              batch_size=args.test_batch_size, shuffle=True, drop_last=False)
-    # train_dataset = ShapeNetPart(partition='trainval', num_points=args.num_points, class_choice=args.class_choice)
+    # train_dataset = ShapeNetPart(partition='trainval', num_points=args.num_points)
     # if (len(train_dataset) < 100):
     #     drop_last = False
     # else:
     #     drop_last = True
     # train_loader = DataLoader(train_dataset, num_workers=8, batch_size=args.batch_size, shuffle=True, drop_last=drop_last)
-    # test_loader = DataLoader(ShapeNetPart(partition='test', num_points=args.num_points, class_choice=args.class_choice),
+    # test_loader = DataLoader(ShapeNetPart(partition='test', num_points=args.num_points),
     #                         num_workers=8, batch_size=args.test_batch_size, shuffle=True, drop_last=False)
 
     device = torch.device("cuda" if args.cuda else "cpu")
@@ -151,10 +151,10 @@ def train(args,textio):
             # train_count_list.append(total_count_train)
             batch_time = time() - t0
             epoch_time += batch_time
-            train_epoch_data["Final_loss"] += final_loss
-            train_epoch_data["FB_loss"] += FB_loss
-            train_epoch_data["M_loss1"] += M_loss1
-            train_epoch_data["M_loss2"] += M_loss2
+            train_epoch_data["Final_loss"] += final_loss.item()
+            train_epoch_data["FB_loss"] += FB_loss.item()
+            train_epoch_data["M_loss1"] += M_loss1.item()
+            train_epoch_data["M_loss2"] += M_loss2.item()
         train_data["Final_loss"].append(train_epoch_data["Final_loss"]/count)
         train_data["FB_loss"].append(train_epoch_data["FB_loss"]/count)
         train_data["M_loss1"].append(train_epoch_data["M_loss1"]/count)
@@ -176,37 +176,38 @@ def train(args,textio):
         epoch_time = 0
 
         count = 0
-        model.eval()
-        for pointcloud, transformed_point_cloud in test_loader:
-            t0 = time()
-            pointcloud = pointcloud.to(device)  # b*1024*3
-            transformed_point_cloud = transformed_point_cloud.to(device)
-            pointcloud = pointcloud.permute(0, 2, 1)  # b*3*1024
-            transformed_point_cloud = transformed_point_cloud.permute(0, 2, 1)
-            batch_size = pointcloud.size()[0]
-            fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
-            final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
-            # test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
-            count += batch_size
-            # total_count_test += batch_size
-            # test_count_list.append(total_count_test)
-            batch_time = time() - t0
-            epoch_time += batch_time
-            test_epoch_data["Final_loss"] += final_loss
-            test_epoch_data["FB_loss"] += FB_loss
-            test_epoch_data["M_loss1"] += M_loss1
-            test_epoch_data["M_loss2"] += M_loss2
-        test_data["Final_loss"].append(test_epoch_data["Final_loss"]/count)
-        test_data["FB_loss"].append(test_epoch_data["FB_loss"]/count)
-        test_data["M_loss1"].append(test_epoch_data["M_loss1"]/count)
-        test_data["M_loss2"].append(test_epoch_data["M_loss2"]/count)
-        outstr = 'Train epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
-                    % (epoch, test_data["Final_loss"][-1], test_data["FB_loss"][-1], test_data["M_loss1"][-1], test_data["M_loss2"][-1], epoch_time)     
-        total_time += epoch_time
-        textio.cprint(outstr)  
-        textio.cprint("############################################################")
-        # print('Finish epoch %d, training loss is: %.6f, testing loss is: %.6f, total time is: %.3f'\
-        #         %(epoch, train_loss_list[-1, 0], test_loss_list[-1, 0], total_time))
+        with torch.no_grad():
+            model.eval()
+            for pointcloud, transformed_point_cloud in test_loader:
+                t0 = time()
+                pointcloud = pointcloud.to(device)  # b*1024*3
+                transformed_point_cloud = transformed_point_cloud.to(device)
+                pointcloud = pointcloud.permute(0, 2, 1)  # b*3*1024
+                transformed_point_cloud = transformed_point_cloud.permute(0, 2, 1)
+                batch_size = pointcloud.size()[0]
+                fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
+                final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
+                # test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
+                count += 1
+                # total_count_test += batch_size
+                # test_count_list.append(total_count_test)
+                batch_time = time() - t0
+                epoch_time += batch_time
+                test_epoch_data["Final_loss"] += final_loss.item()
+                test_epoch_data["FB_loss"] += FB_loss.item()
+                test_epoch_data["M_loss1"] += M_loss1.item()
+                test_epoch_data["M_loss2"] += M_loss2.item()
+            test_data["Final_loss"].append(test_epoch_data["Final_loss"]/count)
+            test_data["FB_loss"].append(test_epoch_data["FB_loss"]/count)
+            test_data["M_loss1"].append(test_epoch_data["M_loss1"]/count)
+            test_data["M_loss2"].append(test_epoch_data["M_loss2"]/count)
+            outstr = 'Test epoch %d: final_loss: %.6f, FB_loss: %.6f, M_loss1: %.6f, M_loss2: %.6f, epoch training time: %.3f' \
+                        % (epoch, test_data["Final_loss"][-1], test_data["FB_loss"][-1], test_data["M_loss1"][-1], test_data["M_loss2"][-1], epoch_time)     
+            total_time += epoch_time
+            textio.cprint(outstr)  
+            textio.cprint("############################################################")
+            # print('Finish epoch %d, training loss is: %.6f, testing loss is: %.6f, total time is: %.3f'\
+            #         %(epoch, train_loss_list[-1, 0], test_loss_list[-1, 0], total_time))
         
         save_loss([train_data["Final_loss"], train_data["FB_loss"], train_data["M_loss1"], train_data["M_loss2"]],
                   [test_data["Final_loss"], test_data["FB_loss"], test_data["M_loss1"], test_data["M_loss2"]],
@@ -298,13 +299,13 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', type=str, default='modelnet40', metavar='N',
                         choices=['modelnet40'])
     parser.add_argument('--datapath',type=str, default='./data_part_seg',metavar='path')
-    parser.add_argument('--batch_size', type=int, default=4, metavar='batch_size',
+    parser.add_argument('--batch_size', type=int, default=12, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--test_batch_size', type=int, default=1, metavar='batch_size',
+    parser.add_argument('--test_batch_size', type=int, default=12, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs', type=int, default=250, metavar='N',
                         help='number of episode to train ')
-    parser.add_argument('--use_sgd', type=bool, default=True,
+    parser.add_argument('--use_sgd', type=bool, default=False,
                         help='Use SGD')
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001, 0.1 if using sgd)')
@@ -332,7 +333,7 @@ if __name__ == "__main__":
                         help='Num of nearest neighbors to use')
     parser.add_argument('--model_path', type=str, default='', metavar='N',
                         help='Pretrained model path')
-    parser.add_argument('--debug', type=bool, default=True,
+    parser.add_argument('--debug', type=bool, default=False,
                         help='Debug mode')
     args = parser.parse_args()
 

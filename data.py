@@ -4,7 +4,8 @@ import glob
 import h5py
 import numpy as np
 from torch.utils.data import Dataset
-# import cv2
+import cv2
+import json
 
 
 def download():
@@ -74,15 +75,14 @@ class ModelNet40(Dataset):
 
 def load_data_partseg(partition):
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    DATA_DIR = os.path.join(BASE_DIR, 'data_part_seg')
     all_data = []
     all_label = []
     all_seg = []
     if partition == 'trainval':
-        file = glob.glob(os.path.join(DATA_DIR, 'shapenet_part_seg_hdf5_data', '*train*.h5')) \
-               + glob.glob(os.path.join(DATA_DIR, 'shapenet_part_seg_hdf5_data', '*val*.h5'))
+        file = glob.glob(os.path.join(DATA_DIR, 'train*.h5'))
     else:
-        file = glob.glob(os.path.join(DATA_DIR, 'shapenet_part_seg_hdf5_data', '*%s*.h5'%partition))
+        file = glob.glob(os.path.join(DATA_DIR, '%s*.h5'%partition))
     for h5_name in file:
         f = h5py.File(h5_name, 'r+')
         data = f['data'][:].astype('float32')
