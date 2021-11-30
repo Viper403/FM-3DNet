@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "--pre_model_path", "/home/huijie/research/EECS542/FM-3DNet/checkpoints/exp/models/50.pth",
+                // "--pre_model_path", "/home/huijie/research/EECS542/FM-3DNet/checkpoints/exp/models/50.pth",
              ]
         }
     ]
