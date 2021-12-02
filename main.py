@@ -312,6 +312,8 @@ if __name__ == "__main__":
                         help='Pretrained model path')
     parser.add_argument('--debug', type=bool, default=False,
                         help='Debug mode')
+    parser.add_argument('--similarity_metric', type=str, default='reciprocal', metavar='N',
+                        help='how to measure similarity: exp or reciprocal')
     args = parser.parse_args()
 
     #_init_()

@@ -152,6 +152,7 @@ class FM3D(nn.Module):
     def __init__(self, args):
         super(FM3D, self).__init__()
         self.args = args
+        self.similarity_metric = args.similarity_metric
         self.DGCNN = DGCNN(args)
         self.DeSmooth = nn.Sequential(
             #nn.Conv1d(in_channels=self.input_pts, out_channels=self.input_pts + 128, kernel_size=1, stride=1,
@@ -162,6 +163,7 @@ class FM3D(nn.Module):
             #          bias=False),
             Modified_softmax(axis=2)
         )
+        self.normalization=norm(axis=1)  #normalization before exp(-x)
         self.bn1 = nn.BatchNorm1d(args.emb_dims//2)
         self.bn2 = nn.BatchNorm1d(args.emb_dims)
         self.predictor = nn.Sequential(nn.Conv1d(args.emb_dims, args.emb_dims//2, kernel_size=1, bias=False),
@@ -194,7 +196,12 @@ class FM3D(nn.Module):
         fe1 = self.DGCNN(pointcloud)
         fe2 = self.DGCNN(transformed_pointcloud)   #b*d*n
         pairwise_distance,_ = self._KFNN(fe1,fe2)
-        similarity = 1 / (pairwise_distance + 1e-6) #b*n*n
+        if self.similarity_metric =="reciprocal":
+            similarity = 1 / (pairwise_distance + 1e-6) #b*n*n
+        else:
+            pairwise_distance = self.normalization(pairwise_distance)
+            similarity = torch.exp(-pairwise_distance)
+            pass
         M = self.DeSmooth(similarity.transpose(1, 2).contiguous()).transpose(1, 2).contiguous()  #b*n*n
         M_t = M.transpose(2, 1).contiguous()  #which one is which one?
         fe1_permuted = torch.bmm(fe1, M)
