@@ -332,7 +332,7 @@ if __name__ == "__main__":
     parser.add_argument('--k', type=int, default=20, metavar='N',
                         help='Num of nearest neighbors to use')
     parser.add_argument('--model_path', type=str, default='', metavar='N',
-                        help='Pretrained model path')
+                        help='Pretrained model path for continue training')
     parser.add_argument('--debug', type=bool, default=False,
                         help='Debug mode')
     args = parser.parse_args()

@@ -164,7 +164,7 @@ class Transform_Net(nn.Module):
         return x
 
 
-class DGCNN_partseg(nn.Module):
+class DGCNN_partseg(nn.Module):   #only contains backbone part
     def __init__(self, args):
         super(DGCNN_partseg, self).__init__()
         self.args = args
@@ -223,12 +223,12 @@ class DGCNN_partseg(nn.Module):
         x = self.conv5(x)                       # (batch_size, 64*2, num_points, k) -> (batch_size, 64, num_points, k)
         x3 = x.max(dim=-1, keepdim=False)[0]    # (batch_size, 64, num_points, k) -> (batch_size, 64, num_points)
 
-        x = torch.cat((x1, x2, x3), dim=1)      # (batch_size, 64*3, num_points)
+        x_ = torch.cat((x1, x2, x3), dim=1)      # (batch_size, 64*3, num_points)
 
-        x = self.conv6(x)                       # (batch_size, 64*3, num_points) -> (batch_size, emb_dims, num_points)
+        x = self.conv6(x_)                       # (batch_size, 64*3, num_points) -> (batch_size, emb_dims, num_points)
         #x = x.max(dim=-1, keepdim=True)[0]      # (batch_size, emb_dims, num_points) -> (batch_size, emb_dims, 1)
         
-        return x
+        return x,x_
 
 
 
@@ -368,8 +368,8 @@ class FM3D_part_seg(nn.Module):
         return pairwise_distance, idx
 
     def forward(self,pointcloud,transformed_pointcloud):
-        fe1 = self.DGCNN_partseg(pointcloud)
-        fe2 = self.DGCNN_partseg(transformed_pointcloud)   #b*d*n
+        fe1,_ = self.DGCNN_partseg(pointcloud)
+        fe2,_ = self.DGCNN_partseg(transformed_pointcloud)   #b*d*n
         pairwise_distance,_ = self._KFNN(fe1,fe2)
         similarity = 1 / (pairwise_distance + 1e-6) #b*n*n
         M = self.DeSmooth(similarity.transpose(1, 2).contiguous()).transpose(1, 2).contiguous()  #b*n*n
