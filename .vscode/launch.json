@@ -9,10 +9,10 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal",
-            "args": [
-                // "--pre_model_path", "/home/huijie/research/EECS542/FM-3DNet/checkpoints/exp/models/50.pth",
-             ]
+            "console": "integratedTerminal"
+            // "args": [
+            //     "--model_path", "/home/huijie/research/EECS542/FM-3DNet/checkpoints/part_seg_backbone/models/58.pth"
+            //  ]
         }
     ]
 }
