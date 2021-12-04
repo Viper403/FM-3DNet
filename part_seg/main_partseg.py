@@ -356,7 +356,7 @@ def test(args, io):
 if __name__ == "__main__":
     # Training settings
     parser = argparse.ArgumentParser(description='Point Cloud Part Segmentation')
-    parser.add_argument('--exp_name', type=str, default='exp', metavar='N',
+    parser.add_argument('--exp_name', type=str, default='part_seg', metavar='N',
                         help='Name of the experiment')
     parser.add_argument('--model', type=str, default='dgcnn', metavar='N',
                         choices=['dgcnn'],
@@ -369,9 +369,9 @@ if __name__ == "__main__":
                         choices=['airplane', 'bag', 'cap', 'car', 'chair',
                                  'earphone', 'guitar', 'knife', 'lamp', 'laptop', 
                                  'motor', 'mug', 'pistol', 'rocket', 'skateboard', 'table'])
-    parser.add_argument('--batch_size', type=int, default=4, metavar='batch_size',
+    parser.add_argument('--batch_size', type=int, default=12, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--test_batch_size', type=int, default=4, metavar='batch_size',
+    parser.add_argument('--test_batch_size', type=int, default=12, metavar='batch_size',
                         help='Size of batch)')
     parser.add_argument('--epochs', type=int, default=200, metavar='N',
                         help='number of episode to train ')
