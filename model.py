@@ -198,10 +198,9 @@ class FM3D(nn.Module):
         pairwise_distance,_ = self._KFNN(fe1,fe2)
         if self.similarity_metric =="reciprocal":
             similarity = 1 / (pairwise_distance + 1e-6) #b*n*n
-        else:
+        elif self.similarity_metric =="exponential":
             pairwise_distance = self.normalization(pairwise_distance)
             similarity = torch.exp(-pairwise_distance)
-            pass
         M = self.DeSmooth(similarity.transpose(1, 2).contiguous()).transpose(1, 2).contiguous()  #b*n*n
         M_t = M.transpose(2, 1).contiguous()  #which one is which one?
         fe1_permuted = torch.bmm(fe1, M)

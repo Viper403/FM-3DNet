@@ -130,10 +130,10 @@ def train(args):
             # train_count_list.append(total_count_train)
             batch_time = time() - t0
             epoch_time += batch_time
-            train_epoch_data["Final_loss"] += final_loss
-            train_epoch_data["FB_loss"] += FB_loss
-            train_epoch_data["M_loss1"] += M_loss1
-            train_epoch_data["M_loss2"] += M_loss2
+            train_epoch_data["Final_loss"] += final_loss.item()
+            train_epoch_data["FB_loss"] += FB_loss.item()
+            train_epoch_data["M_loss1"] += M_loss1.item()
+            train_epoch_data["M_loss2"] += M_loss2.item()
         train_data["Final_loss"].append(train_epoch_data["Final_loss"]/count)
         train_data["FB_loss"].append(train_epoch_data["FB_loss"]/count)
         train_data["M_loss1"].append(train_epoch_data["M_loss1"]/count)
@@ -156,25 +156,26 @@ def train(args):
 
         count = 0
         model.eval()
-        for pointcloud, transformed_point_cloud in test_loader:
-            t0 = time()
-            pointcloud = pointcloud.to(device)  # b*1024*3
-            transformed_point_cloud = transformed_point_cloud.to(device)
-            pointcloud = pointcloud.permute(0, 2, 1)  # b*3*1024
-            transformed_point_cloud = transformed_point_cloud.permute(0, 2, 1)
-            batch_size = pointcloud.size()[0]
-            fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
-            final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
-            test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
-            count += batch_size
-            # total_count_test += batch_size
-            # test_count_list.append(total_count_test)
-            batch_time = time() - t0
-            epoch_time += batch_time
-            test_epoch_data["Final_loss"] += final_loss
-            test_epoch_data["FB_loss"] += FB_loss
-            test_epoch_data["M_loss1"] += M_loss1
-            test_epoch_data["M_loss2"] += M_loss2
+        with torch.no_grad():
+            for pointcloud, transformed_point_cloud in test_loader:
+                t0 = time()
+                pointcloud = pointcloud.to(device)  # b*1024*3
+                transformed_point_cloud = transformed_point_cloud.to(device)
+                pointcloud = pointcloud.permute(0, 2, 1)  # b*3*1024
+                transformed_point_cloud = transformed_point_cloud.permute(0, 2, 1)
+                batch_size = pointcloud.size()[0]
+                fe1_nograd, fe2_nograd, fe1_final, fe2_final, M = model(pointcloud, transformed_point_cloud)
+                final_loss, FB_loss, M_loss1, M_loss2 = loss_function(fe1_nograd, fe2_nograd, fe1_final, fe2_final, M)
+                # test_loss_list = np.vstack((test_loss_list, np.array([final_loss.item(), FB_loss.item(), M_loss1.item(),M_loss2.item()])))
+                count += 1
+                # total_count_test += batch_size
+                # test_count_list.append(total_count_test)
+                batch_time = time() - t0
+                epoch_time += batch_time
+                test_epoch_data["Final_loss"] += final_loss.item()
+                test_epoch_data["FB_loss"] += FB_loss.item()
+                test_epoch_data["M_loss1"] += M_loss1.item()
+                test_epoch_data["M_loss2"] += M_loss2.item()
         test_data["Final_loss"].append(test_epoch_data["Final_loss"]/count)
         test_data["FB_loss"].append(test_epoch_data["FB_loss"]/count)
         test_data["M_loss1"].append(test_epoch_data["M_loss1"]/count)
@@ -216,7 +217,7 @@ def save_loss(train_list, test_list, epoch):
     if os.path.exists('Loss.jpg'):
         os.remove('Loss.jpg')
     fig.savefig('Loss.jpg')
-    plt.clf()
+    plt.close()
 
 def test(args):  #not written
     # test_loader = DataLoader(ModelNet40(partition='test', num_points=args.num_points, debug=args.debug),
@@ -269,18 +270,18 @@ def test(args):  #not written
 if __name__ == "__main__":
     # Training settings
     parser = argparse.ArgumentParser(description='Point Cloud Recognition')
-    parser.add_argument('--exp_name', type=str, default='exp', metavar='N',
+    parser.add_argument('--exp_name', type=str, default='exp_use_exponential', metavar='N',
                         help='Name of the experiment')
     parser.add_argument('--model', type=str, default='dgcnn', metavar='N',
                         choices=['pointnet', 'dgcnn'],
                         help='Model to use, [pointnet, dgcnn]')
     parser.add_argument('--dataset', type=str, default='modelnet40', metavar='N',
                         choices=['modelnet40'])
-    parser.add_argument('--batch_size', type=int, default=4, metavar='batch_size',
+    parser.add_argument('--batch_size', type=int, default=24, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--test_batch_size', type=int, default=4, metavar='batch_size',
+    parser.add_argument('--test_batch_size', type=int, default=24, metavar='batch_size',
                         help='Size of batch)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs', type=int, default=200, metavar='N',
                         help='number of episode to train ')
     parser.add_argument('--use_sgd', type=bool, default=False,
                         help='Use SGD')
@@ -312,8 +313,8 @@ if __name__ == "__main__":
                         help='Pretrained model path')
     parser.add_argument('--debug', type=bool, default=False,
                         help='Debug mode')
-    parser.add_argument('--similarity_metric', type=str, default='reciprocal', metavar='N',
-                        help='how to measure similarity: exp or reciprocal')
+    parser.add_argument('--similarity_metric', type=str, default='exponential', metavar='N',
+                        help='how to measure similarity: exponential or reciprocal')
     args = parser.parse_args()
 
     #_init_()
