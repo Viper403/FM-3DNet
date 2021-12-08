@@ -189,7 +189,7 @@ def save_loss(train_list, test_list, epoch):
 if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='Point Cloud Recognition')
-    parser.add_argument('--exp_name', type=str, default='exp', metavar='N',
+    parser.add_argument('--exp_name', type=str, default='cls_exponential_backbone', metavar='N',
                         help='Name of the experiment')
     parser.add_argument('--model', type=str, default='dgcnn', metavar='N',
                         choices=['pointnet', 'dgcnn'],
@@ -202,7 +202,7 @@ if __name__ == '__main__':
                         help='Size of batch)')
     parser.add_argument('--epochs', type=int, default=250, metavar='N',
                         help='number of episode to train ')
-    parser.add_argument('--use_sgd', type=bool, default=True,
+    parser.add_argument('--use_sgd', type=bool, default=False,
                         help='Use SGD')
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001, 0.1 if using sgd)')
@@ -228,7 +228,7 @@ if __name__ == '__main__':
                         help='#')
     parser.add_argument('--k', type=int, default=20, metavar='N',
                         help='Num of nearest neighbors to use')
-    parser.add_argument('--model_path', type=str, default='', metavar='N',
+    parser.add_argument('--model_path', type=str, default='/home/huijie/research/EECS542/FM-3DNet/checkpoints/exp/models/50.pth', metavar='N',
                         help='Pretrained model path')
     parser.add_argument('--debug', type=bool, default=False,
                         help='Debug mode')

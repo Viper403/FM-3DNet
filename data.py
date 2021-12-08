@@ -70,6 +70,22 @@ class ModelNet40(Dataset):
     def __len__(self):
         return self.point_clouds.shape[0]
 
+class ModelNet40WithSequence(Dataset):
+    def __init__(self, num_points, partition='train', debug = False):
+        self.point_clouds, self.transformed_point_clouds = load_data(partition, debug)
+        self.partition = partition
+
+    def __getitem__(self, item):
+        pointcloud = self.point_clouds[item]
+        transformed_point_cloud = self.transformed_point_clouds[item]
+        index = np.linspace(0, pointcloud.shape[0]-1, pointcloud.shape[0], dtype = "int32")
+        # np.random.shuffle(pointcloud)
+        # np.random.shuffle(transformed_point_cloud)
+        return pointcloud, transformed_point_cloud, index
+
+    def __len__(self):
+        return self.point_clouds.shape[0]
+
 
 if __name__ == '__main__':
     train = ModelNet40('train')
